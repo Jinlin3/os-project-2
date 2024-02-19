@@ -7,14 +7,20 @@
 
 typedef unsigned int worker_t;
 
-typedef struct TCB
-{
+typedef enum {
+    READY,
+    RUNNING,
+    WAITING,
+    TERMINATED
+} thread_status;
+
+typedef struct TCB {
     /* add important states in a thread control block */
-    // thread Id
-    // thread status
-    // thread context
-    // thread stack
-    // thread priority
+    worker_t id; // thread Id
+    thread_status status;  // thread status
+    ucontext_t context; // thread context
+    void* stack; // thread stack
+    int priority; // thread priority
     // And more ...
 
     // YOUR CODE HERE
