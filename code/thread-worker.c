@@ -20,17 +20,33 @@ int init_scheduler_done = 0;
 
 /* create a new thread */
 int worker_create(worker_t *thread, pthread_attr_t *attr,
-                  void *(*function)(void *), void *arg)
+                  void* (*function)(void *), void *arg)
 {
-    // 1 - create Thread Control Block (TCB)
-    // 2 - create and initialize the context of this worker thread
-    // 3 - allocate space of stack for this thread to run
-    // 4 after everything is set, push this thread into run queue and
-    // 5 - make it ready for the execution.
+    // create Thread Control Block (TCB)
+    // create and initialize the context of this worker thread
+    // allocate space of stack for this thread to run
+    // after everything is set, push this thread into run queue and
+    // make it ready for the execution.
 
-    struct TCB thread; // 1
-    ucontext_t cctx; // 2
-    void* stack = malloc(STACK_SIZE); // 3
+    // 1 - Create Thread Control Block (TCB)
+    struct TCB* threadPtr = (struct TCB*)malloc(sizeof(struct TCB));
+    if (threadPtr == NULL) {
+        perror("Failed to allocate threadPtr");
+        exit(1);
+    }
+    threadPtr->id = *thread; // initializing TCB id
+    threadPtr->status = READY; // initializing TCB status
+    threadPtr->priority = 1; // initializing TCB priority to 1
+
+    // 2 - create and initialize the context of this worker thread
+    ucontext_t cctx;
+    if (getcontext(&cctx) < 0){
+		perror("getcontext");
+		exit(1);
+	}
+
+    // 3 - allocate space of stack for this thread to run
+    void* stack = malloc(STACK_SIZE);
 	
 	if (stack == NULL) { // catching error for malloc
 		perror("Failed to allocate stack");
@@ -43,8 +59,13 @@ int worker_create(worker_t *thread, pthread_attr_t *attr,
 	cctx.uc_stack.ss_size = STACK_SIZE;
 	cctx.uc_stack.ss_flags = 0;
 
-    makecontext(&cctx,(void*)function, 0);
+    makecontext(&cctx, function, 0); // not sure about this one, try implementing it with the function arguments in mind
     
+    threadPtr->context = cctx;
+    threadPtr->stack = stack;
+
+    // AFTER THIS PUSH THREAD INTO RUN QUEUE FOR EXECUTION
+
     return 0;
 }
 
