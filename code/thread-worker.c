@@ -10,6 +10,7 @@
 
 #include "thread-worker.h"
 #include "thread_worker_types.h"
+#include <ucontext.h>
 
 #define STACK_SIZE 16 * 1024
 #define QUANTUM 10 * 1000
@@ -21,11 +22,29 @@ int init_scheduler_done = 0;
 int worker_create(worker_t *thread, pthread_attr_t *attr,
                   void *(*function)(void *), void *arg)
 {
-    // - create Thread Control Block (TCB)
-    // - create and initialize the context of this worker thread
-    // - allocate space of stack for this thread to run
-    // after everything is set, push this thread into run queue and
-    // - make it ready for the execution.
+    // 1 - create Thread Control Block (TCB)
+    // 2 - create and initialize the context of this worker thread
+    // 3 - allocate space of stack for this thread to run
+    // 4 after everything is set, push this thread into run queue and
+    // 5 - make it ready for the execution.
+
+    struct TCB thread; // 1
+    ucontext_t cctx; // 2
+    void* stack = malloc(STACK_SIZE); // 3
+	
+	if (stack == NULL) { // catching error for malloc
+		perror("Failed to allocate stack");
+		exit(1);
+	}
+	
+    // setting up context
+	cctx.uc_link = NULL;
+	cctx.uc_stack.ss_sp = stack;
+	cctx.uc_stack.ss_size = STACK_SIZE;
+	cctx.uc_stack.ss_flags = 0;
+
+    makecontext(&cctx,(void*)function, 0);
+    
     return 0;
 }
 
