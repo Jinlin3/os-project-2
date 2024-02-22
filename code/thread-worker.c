@@ -19,52 +19,47 @@
 int init_scheduler_done = 0;
 
 /* create a new thread */
+// create Thread Control Block (TCB)
+// create and initialize the context of this worker thread
+// allocate space of stack for this thread to run
+// after everything is set, push this thread into run queue and
+// make it ready for the execution.
 int worker_create(worker_t *thread, pthread_attr_t *attr,
                   void* (*function)(void *), void *arg)
 {
-    // create Thread Control Block (TCB)
-    // create and initialize the context of this worker thread
-    // allocate space of stack for this thread to run
-    // after everything is set, push this thread into run queue and
-    // make it ready for the execution.
-
     // 1 - Create Thread Control Block (TCB)
-    struct TCB* threadPtr = (struct TCB*)malloc(sizeof(struct TCB));
-    if (threadPtr == NULL) {
-        perror("Failed to allocate threadPtr");
+    struct TCB* tcbPtr = (struct TCB*)malloc(sizeof(struct TCB));
+    if (tcbPtr == NULL) {
+        perror("Failed to allocate tcbPtr");
         exit(1);
     }
-    threadPtr->id = *thread; // initializing TCB id
-    threadPtr->status = READY; // initializing TCB status
-    threadPtr->priority = 1; // initializing TCB priority to 1
+    tcbPtr->id = *thread; // initializing TCB id
+    tcbPtr->status = READY; // initializing TCB status
+    tcbPtr->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
 
     // 2 - create and initialize the context of this worker thread
     ucontext_t cctx;
-    if (getcontext(&cctx) < 0){
+    if (getcontext(&cctx) < 0) {
 		perror("getcontext");
 		exit(1);
 	}
-
-    // 3 - allocate space of stack for this thread to run
+    // allocate space of stack for this thread to run
     void* stack = malloc(STACK_SIZE);
-	
 	if (stack == NULL) { // catching error for malloc
 		perror("Failed to allocate stack");
 		exit(1);
 	}
-	
+    tcbPtr->stack = stack;
     // setting up context
 	cctx.uc_link = NULL;
 	cctx.uc_stack.ss_sp = stack;
 	cctx.uc_stack.ss_size = STACK_SIZE;
 	cctx.uc_stack.ss_flags = 0;
 
-    makecontext(&cctx, function, 0); // not sure about this one, try implementing it with the function arguments in mind
-    
-    threadPtr->context = cctx;
-    threadPtr->stack = stack;
+    makecontext(&cctx, (void*)&function, 1, arg); // pretty sure the function takes in 1 argument
+    tcbPtr->context = cctx;
 
-    // AFTER THIS PUSH THREAD INTO RUN QUEUE FOR EXECUTION
+    // push thread into run queue for execution
 
     return 0;
 }
