@@ -14,16 +14,22 @@ void* createList() {
     list = newList;
 }
 
+// prints out the number of items in the queue
+void* printCount() {
+    printf("Number of threads in the queue: %d\n", list->count);
+}
+
 // prints out queue
 void* printList() {
     if (list->count == 0) {
         printf("The queue is empty.\n");
     } else {
         struct Node* ptr = list->head;
-        do {
+        while (ptr != NULL) {
             printf("%d -> ", ptr->data->id);
-        } while(ptr->next != NULL);
-        printf("END OF QUEUE\n");
+            ptr = ptr->next;
+        }
+        printf("END\n");
     }
 }
 

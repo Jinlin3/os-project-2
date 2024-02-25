@@ -25,9 +25,16 @@ int init_scheduler_done = 0;
 // allocate space of stack for this thread to run
 // after everything is set, push this thread into run queue and
 // make it ready for the execution.
-int worker_create(worker_t *thread, pthread_attr_t *attr,
-                  void* (*function)(void *), void *arg)
+
+// default function declaration: int worker_create(worker_t *thread, pthread_attr_t *attr,
+//     void* (*function)(void *), void *arg)
+int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
+    // initializes queue
+    if (init_scheduler_done == 0) {
+        init_scheduler_done++;
+        createList();
+    }
     // 1 - Create Thread Control Block (TCB)
     struct TCB* tcbPtr = (struct TCB*)malloc(sizeof(struct TCB));
     if (tcbPtr == NULL) {
@@ -61,6 +68,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr,
     tcbPtr->context = cctx;
 
     // push thread into run queue for execution
+    addToQueue(tcbPtr);
 
     return 0;
 }

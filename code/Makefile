@@ -5,12 +5,14 @@ RANLIB = ranlib
 
 all: clean thread-worker.a
 
-thread-worker.a: thread-worker.o
-	$(AR) libthread-worker.a thread-worker.o
+thread-worker.a: thread-worker.o linked_list.o
+	$(AR) libthread-worker.a thread-worker.o linked_list.o
 	$(RANLIB) libthread-worker.a
 
+thread-worker.o: thread-worker.c thread-worker.h thread_worker_types.h mutex_types.h linked_list.h
 
-thread-worker.o: thread-worker.h thread_worker_types.h mutex_types.h
+linked_list.o: linked_list.c linked_list.h
+	$(CC) $(CFLAGS) -o $@ $<
 
 ifeq ($(SCHED), RR)
 	$(CC) $(CFLAGS) -DRR thread-worker.c

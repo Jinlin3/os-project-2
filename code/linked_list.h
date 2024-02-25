@@ -15,6 +15,9 @@ struct LinkedList {
     int count;
 };
 
+// prints out the number of items in the queue
+void* printCount();
+
 // initializes linked list object
 void* createList();
 
