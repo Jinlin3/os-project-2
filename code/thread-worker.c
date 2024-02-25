@@ -10,6 +10,7 @@
 
 #include "thread-worker.h"
 #include "thread_worker_types.h"
+#include "linked_list.h"
 #include <ucontext.h>
 
 #define STACK_SIZE 16 * 1024
