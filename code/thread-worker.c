@@ -30,24 +30,75 @@ int init_scheduler_done = 0;
 //     void* (*function)(void *), void *arg)
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
-    // initializes queue
+    // initializes queue, main thread, and scheduler thread
     if (init_scheduler_done == 0) {
         init_scheduler_done++;
+        // initializes queue
         createList();
+        // scheduler thread
+        struct TCB* schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
+        if (schedulerTCB == NULL) {
+            perror("Failed to allocate mainTCB");
+            exit(1);
+        }
+        ucontext_t schedulerContext;
+        if (getcontext(&schedulerContext) < 0) {
+            perror("getcontext");
+            exit(1);
+        }
+        void* schedulerStack = malloc(STACK_SIZE);
+	    if (schedulerStack == NULL) { // catching error for malloc
+            perror("Failed to allocate stack");
+            exit(1);
+	    }
+        schedulerContext.uc_link = NULL;
+        schedulerContext.uc_stack.ss_sp = schedulerStack;
+        schedulerContext.uc_stack.ss_size = STACK_SIZE;
+        schedulerContext.uc_stack.ss_flags = 0;
+        makecontext(&schedulerContext, (void*)&schedule, 0); // ERROR HERE PLZ FIX
+
+        schedulerTCB->id = 1; // initializing TCB id
+        schedulerTCB->status = READY; // initializing TCB status
+        schedulerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
+        schedulerTCB->stack = schedulerStack;
+        schedulerTCB->context = schedulerContext;
+        addToQueue(schedulerTCB);
+        // initializes main thread
+        struct TCB* mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
+        if (mainTCB == NULL) {
+            perror("Failed to allocate mainTCB");
+            exit(1);
+        }
+        ucontext_t mainContext;
+        if (getcontext(&mainContext) < 0) {
+            perror("getcontext");
+            exit(1);
+        }
+        void* mainStack = malloc(STACK_SIZE);
+	    if (mainStack == NULL) { // catching error for malloc
+            perror("Failed to allocate stack");
+            exit(1);
+	    }
+        mainTCB->id = 0; // initializing TCB id
+        mainTCB->status = READY; // initializing TCB status
+        mainTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
+        mainTCB->stack = mainStack;
+        mainTCB->context = mainContext;
+        addToQueue(mainTCB);
     }
     // 1 - Create Thread Control Block (TCB)
-    struct TCB* tcbPtr = (struct TCB*)malloc(sizeof(struct TCB));
-    if (tcbPtr == NULL) {
-        perror("Failed to allocate tcbPtr");
+    struct TCB* workerTCB = (struct TCB*)malloc(sizeof(struct TCB));
+    if (workerTCB == NULL) {
+        perror("Failed to allocate workerTCB");
         exit(1);
     }
-    tcbPtr->id = *thread; // initializing TCB id
-    tcbPtr->status = READY; // initializing TCB status
-    tcbPtr->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
+    workerTCB->id = *thread; // initializing TCB id
+    workerTCB->status = READY; // initializing TCB status
+    workerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
 
     // 2 - create and initialize the context of this worker thread
-    ucontext_t cctx;
-    if (getcontext(&cctx) < 0) {
+    ucontext_t workerContext;
+    if (getcontext(&workerContext) < 0) {
 		perror("getcontext");
 		exit(1);
 	}
@@ -57,18 +108,18 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
 		perror("Failed to allocate stack");
 		exit(1);
 	}
-    tcbPtr->stack = stack;
+    workerTCB->stack = stack;
     // setting up context
-	cctx.uc_link = NULL;
-	cctx.uc_stack.ss_sp = stack;
-	cctx.uc_stack.ss_size = STACK_SIZE;
-	cctx.uc_stack.ss_flags = 0;
+	workerContext.uc_link = NULL;
+	workerContext.uc_stack.ss_sp = stack;
+	workerContext.uc_stack.ss_size = STACK_SIZE;
+	workerContext.uc_stack.ss_flags = 0;
 
-    makecontext(&cctx, (void*)&function, 1, arg); // pretty sure the function takes in 1 argument
-    tcbPtr->context = cctx;
+    makecontext(&workerContext, (void*)&function, 1, arg); // pretty sure the function takes in 1 argument
+    workerTCB->context = workerContext;
 
     // push thread into run queue for execution
-    addToQueue(tcbPtr);
+    addToQueue(workerTCB);
 
     return 0;
 }
@@ -76,7 +127,6 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
 /* give CPU possession to other user-level worker threads voluntarily */
 int worker_yield()
 {
-
     // - change worker thread's state from Running to Ready
     // - save context of this thread to its thread control block
     // - switch from thread context to scheduler context
