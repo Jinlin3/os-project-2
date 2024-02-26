@@ -89,6 +89,7 @@ int initialize_main() {
 
     mainTCB = mainTCBptr;
     addToQueue(mainTCB);
+    currentTCB = mainTCB; // changes the current context to the main context, because it is
 }
 
 /* create a new thread */
@@ -253,7 +254,7 @@ static void timer_init() {
 /* sigaction function */
 static void signal_handler() {
     printf("timer\n");
-    swapcontext(&mainTCB->context, &schedulerTCB->context);
+    swapcontext(&currentTCB->context, &schedulerTCB->context);
 }
 
 static void sched_rr()
