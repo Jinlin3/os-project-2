@@ -16,8 +16,45 @@
 #define STACK_SIZE 16 * 1024
 #define QUANTUM 10 * 1000
 
+// scheduler id = 0, main id = 1, workers = 2+
+
 // INITIALIZE ALL YOUR OTHER VARIABLES HERE
 int init_scheduler_done = 0;
+
+// SCHEDULER TCB
+struct TCB* schedulerTCB;
+
+/* creates scheduler TCB */
+int initialize_scheduler() {
+    struct TCB* schedulerTCBptr = (struct TCB*)malloc(sizeof(struct TCB));
+    if (schedulerTCBptr == NULL) {
+        perror("Failed to allocate mainTCB");
+        exit(1);
+    }
+    ucontext_t schedulerContext;
+    if (getcontext(&schedulerContext) < 0) {
+        perror("getcontext");
+        exit(1);
+    }
+    void* schedulerStack = malloc(STACK_SIZE);
+    if (schedulerStack == NULL) { // catching error for malloc
+        perror("Failed to allocate stack");
+        exit(1);
+    }
+    schedulerContext.uc_link = NULL;
+    schedulerContext.uc_stack.ss_sp = schedulerStack;
+    schedulerContext.uc_stack.ss_size = STACK_SIZE;
+    schedulerContext.uc_stack.ss_flags = 0;
+    makecontext(&schedulerContext,(void*)&schedule, 0); // ERROR HERE PLZ FIX
+
+    schedulerTCBptr->id = 0; // initializing TCB id
+    schedulerTCBptr->status = READY; // initializing TCB status
+    schedulerTCBptr->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
+    schedulerTCBptr->stack = schedulerStack;
+    schedulerTCBptr->context = schedulerContext;
+
+    schedulerTCB = schedulerTCBptr;
+}
 
 /* create a new thread */
 // create Thread Control Block (TCB)
@@ -25,8 +62,6 @@ int init_scheduler_done = 0;
 // allocate space of stack for this thread to run
 // after everything is set, push this thread into run queue and
 // make it ready for the execution.
-
-// scheduler id = 0, main id = 1
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
     // initializes queue, main thread, and scheduler thread
@@ -35,33 +70,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     // initializes queue
         createList();
     // initializes scheduler thread
-        struct TCB* schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
-        if (schedulerTCB == NULL) {
-            perror("Failed to allocate mainTCB");
-            exit(1);
-        }
-        ucontext_t schedulerContext;
-        if (getcontext(&schedulerContext) < 0) {
-            perror("getcontext");
-            exit(1);
-        }
-        void* schedulerStack = malloc(STACK_SIZE);
-	    if (schedulerStack == NULL) { // catching error for malloc
-            perror("Failed to allocate stack");
-            exit(1);
-	    }
-        schedulerContext.uc_link = NULL;
-        schedulerContext.uc_stack.ss_sp = schedulerStack;
-        schedulerContext.uc_stack.ss_size = STACK_SIZE;
-        schedulerContext.uc_stack.ss_flags = 0;
-        makecontext(&schedulerContext,(void*)&schedule, 0); // ERROR HERE PLZ FIX
-
-        schedulerTCB->id = 0; // initializing TCB id
-        schedulerTCB->status = READY; // initializing TCB status
-        schedulerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
-        schedulerTCB->stack = schedulerStack;
-        schedulerTCB->context = schedulerContext;
-        addToQueue(schedulerTCB);
+        initialize_scheduler();
     // initializes main thread
         struct TCB* mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
         if (mainTCB == NULL) {

@@ -21,6 +21,9 @@
 
 /* Function Declarations: */
 
+/* creates scheduler TCB */
+int initialize_scheduler();
+
 /* create a new thread */
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg);
 

@@ -8,50 +8,35 @@
 
 #define STACK_SIZE 16 * 1024
 
-ucontext_t fooctx, barctx, scheduler, flipctx;
-int flipflop = 1;
+ucontext_t fooctx, barctx, scheduler;
+int fooBar = 0;
 
 void foo() {
-  // setting up timer
   while (1) {
-    printf("foo ");
-    swapcontext(&fooctx, &scheduler);
+    printf("foo");
   }
 }
 
 void bar() {
-  // setting up timer
   while (1) {
-    printf("bar ");
-    swapcontext(&barctx, &scheduler);
+    printf("bar");
   }
-}
-
-void flip() {
-  flipflop = -flipflop;
-  printf("flipflop!");
 }
 
 void schedule() {
-  struct sigaction sa;
-	memset (&sa, 0, sizeof(sa));
-	sa.sa_handler = &flip;
-	sigaction (SIGPROF, &sa, NULL);
-
-	struct itimerval timer;
-	timer.it_interval.tv_usec = 0;
-	timer.it_interval.tv_sec = 1;
-	timer.it_value.tv_usec = 0;
-	timer.it_value.tv_sec = 1;
-  setitimer(ITIMER_PROF, &timer, NULL);
-
-  while (1) {
-    if (flipflop == 1) {
-      swapcontext(&scheduler, &fooctx);
-    } else {
-      swapcontext(&scheduler, &barctx);
-    }
+  printf("schedule\n");
+  printf("foobar: %d\n", fooBar);
+  if (fooBar == 0) {
+    fooBar = 1;
+    swapcontext(&scheduler, &fooctx);
+  } else {
+    fooBar = 0;
+    swapcontext(&scheduler, &barctx);
   }
+}
+
+void timer() {
+  setcontext(&scheduler);
 }
 
 int main() {
@@ -76,22 +61,24 @@ int main() {
   getcontext(&scheduler);
   void* schedulerStack = malloc(STACK_SIZE);
   scheduler.uc_link=NULL;
-	scheduler.uc_stack.ss_sp=schedulerStack;
-	scheduler.uc_stack.ss_size=STACK_SIZE;
-	scheduler.uc_stack.ss_flags=0;
-  makecontext(&scheduler,(void *)&schedule,0);
+  scheduler.uc_stack.ss_sp=schedulerStack;
+  scheduler.uc_stack.ss_size=STACK_SIZE;
+  scheduler.uc_stack.ss_flags=0;
+  makecontext(&scheduler,(void *)&bar,0);
 
-  getcontext(&flipctx);
-  void* flipStack = malloc(STACK_SIZE);
-  flipctx.uc_link=NULL;
-	flipctx.uc_stack.ss_sp=flipStack;
-	flipctx.uc_stack.ss_size=STACK_SIZE;
-	flipctx.uc_stack.ss_flags=0;
-  makecontext(&flipctx,(void *)&flip,0);
+  struct sigaction sa;
+	memset (&sa, 0, sizeof(sa));
+	sa.sa_handler = &timer;
+	sigaction (SIGPROF, &sa, NULL);
 
-  setcontext(&fooctx);
-  
-  // while(1);
+	struct itimerval timer;
+	timer.it_interval.tv_usec = 0;
+	timer.it_interval.tv_sec = 1;
+	timer.it_value.tv_usec = 0;
+	timer.it_value.tv_sec = 1;
+  setitimer(ITIMER_PROF, &timer, NULL);
+
+  while(1);
 
   return 0;
 }
