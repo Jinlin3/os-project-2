@@ -26,16 +26,15 @@ int init_scheduler_done = 0;
 // after everything is set, push this thread into run queue and
 // make it ready for the execution.
 
-// default function declaration: int worker_create(worker_t *thread, pthread_attr_t *attr,
-//     void* (*function)(void *), void *arg)
+// scheduler id = 0, main id = 1
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
     // initializes queue, main thread, and scheduler thread
     if (init_scheduler_done == 0) {
         init_scheduler_done++;
-        // initializes queue
+    // initializes queue
         createList();
-        // scheduler thread
+    // initializes scheduler thread
         struct TCB* schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
         if (schedulerTCB == NULL) {
             perror("Failed to allocate mainTCB");
@@ -55,15 +54,15 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
         schedulerContext.uc_stack.ss_sp = schedulerStack;
         schedulerContext.uc_stack.ss_size = STACK_SIZE;
         schedulerContext.uc_stack.ss_flags = 0;
-        makecontext(&schedulerContext, (void*)&schedule, 0); // ERROR HERE PLZ FIX
+        makecontext(&schedulerContext,(void*)&schedule, 0); // ERROR HERE PLZ FIX
 
-        schedulerTCB->id = 1; // initializing TCB id
+        schedulerTCB->id = 0; // initializing TCB id
         schedulerTCB->status = READY; // initializing TCB status
         schedulerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
         schedulerTCB->stack = schedulerStack;
         schedulerTCB->context = schedulerContext;
         addToQueue(schedulerTCB);
-        // initializes main thread
+    // initializes main thread
         struct TCB* mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
         if (mainTCB == NULL) {
             perror("Failed to allocate mainTCB");
@@ -79,7 +78,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
             perror("Failed to allocate stack");
             exit(1);
 	    }
-        mainTCB->id = 0; // initializing TCB id
+        mainTCB->id = 1; // initializing TCB id
         mainTCB->status = READY; // initializing TCB status
         mainTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
         mainTCB->stack = mainStack;
@@ -92,7 +91,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
         perror("Failed to allocate workerTCB");
         exit(1);
     }
-    workerTCB->id = *thread; // initializing TCB id
+    workerTCB->id = newThreadId(); // initializing TCB id
     workerTCB->status = READY; // initializing TCB status
     workerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
 

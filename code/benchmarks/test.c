@@ -17,14 +17,6 @@ int main(int argc, char **argv)
 	worker_t f2;
 	worker_create(&f2, (void*)&simplef, NULL, &arg2);
 
-	void* arg3 = NULL;
-	worker_t f3;
-	worker_create(&f3, (void*)&simplef, NULL, &arg3);
-
-	void* arg4 = NULL;
-	worker_t f4;
-	worker_create(&f4, (void*)&simplef, NULL, &arg4);
-
 	printCount();
 	printList();
 

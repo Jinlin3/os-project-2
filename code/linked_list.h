@@ -27,4 +27,7 @@ void* printList();
 // creates a new node and returns it; parameter is a TCB struct
 void* addToQueue(struct TCB* thread);
 
+// returns the value of a new thread id
+int newThreadId();
+
 #endif
