@@ -19,7 +19,7 @@
 #include <string.h>
 #include <ucontext.h>
 
-#define STACK_SIZE 16 * 102
+#define STACK_SIZE 16 * 1024
 #define QUANTUM 5 * 100000 // 0.5s
 // #define QUANTUM 10 * 1000
 
