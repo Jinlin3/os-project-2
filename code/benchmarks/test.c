@@ -13,12 +13,10 @@ int main(int argc, char **argv)
 	worker_t f1;
 	worker_create(&f1, (void*)&simplef, NULL, &arg1);
 
-	void* arg2 = NULL;
-	worker_t f2;
-	worker_create(&f2, (void*)&simplef, NULL, &arg2);
-
 	printCount();
 	printList();
+
+	while(1);
 
 	return 0;
 }

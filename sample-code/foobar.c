@@ -8,40 +8,49 @@
 
 #define STACK_SIZE 16 * 1024
 
-ucontext_t fooctx, barctx, scheduler;
-int fooBar = 0;
+ucontext_t fooctx, barctx, scheduler, mainctx;
+int fooBar = 1;
 
 void foo() {
   while (1) {
-    printf("foo");
+    printf("foo! ");
+    swapcontext(&fooctx, &scheduler);
   }
 }
 
 void bar() {
   while (1) {
-    printf("bar");
+    printf("bar! ");
+    swapcontext(&barctx, &scheduler);
   }
 }
 
 void schedule() {
-  printf("schedule\n");
-  printf("foobar: %d\n", fooBar);
-  if (fooBar == 0) {
-    fooBar = 1;
-    swapcontext(&scheduler, &fooctx);
-  } else {
-    fooBar = 0;
-    swapcontext(&scheduler, &barctx);
+  while (1) {
+    if (fooBar == 0) {
+      swapcontext(&scheduler, &fooctx);
+    } else {
+      swapcontext(&scheduler, &barctx);
+    }
   }
 }
 
 void timer() {
-  setcontext(&scheduler);
+  printf("ring!\n");
+  if (fooBar == 0) {
+    fooBar = 1;
+  } else {
+    fooBar = 0;
+  }
+  swapcontext(&mainctx, &scheduler);
 }
 
 int main() {
 
   // setting up contexts
+
+  getcontext(&mainctx);
+
   getcontext(&fooctx);
   void* fooStack = malloc(STACK_SIZE);
   fooctx.uc_link=NULL;
@@ -64,7 +73,7 @@ int main() {
   scheduler.uc_stack.ss_sp=schedulerStack;
   scheduler.uc_stack.ss_size=STACK_SIZE;
   scheduler.uc_stack.ss_flags=0;
-  makecontext(&scheduler,(void *)&bar,0);
+  makecontext(&scheduler,(void *)&schedule,0);
 
   struct sigaction sa;
 	memset (&sa, 0, sizeof(sa));
@@ -76,6 +85,7 @@ int main() {
 	timer.it_interval.tv_sec = 1;
 	timer.it_value.tv_usec = 0;
 	timer.it_value.tv_sec = 1;
+
   setitimer(ITIMER_PROF, &timer, NULL);
 
   while(1);

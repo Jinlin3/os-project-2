@@ -11,10 +11,17 @@
 #include "thread-worker.h"
 #include "thread_worker_types.h"
 #include "linked_list.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <string.h>
 #include <ucontext.h>
 
-#define STACK_SIZE 16 * 1024
-#define QUANTUM 10 * 1000
+#define STACK_SIZE 16 * 102
+#define QUANTUM 5 * 100000 // 0.5s
+// #define QUANTUM 10 * 1000
 
 // scheduler id = 0, main id = 1, workers = 2+
 
@@ -23,6 +30,12 @@ int init_scheduler_done = 0;
 
 // SCHEDULER TCB
 struct TCB* schedulerTCB;
+// MAIN TCB
+struct TCB* mainTCB;
+// CURRENT TCB
+struct TCB* currentTCB;
+// timer
+struct itimerval timer;
 
 /* creates scheduler TCB */
 int initialize_scheduler() {
@@ -56,6 +69,28 @@ int initialize_scheduler() {
     schedulerTCB = schedulerTCBptr;
 }
 
+/* creates main TCB */
+int initialize_main() {
+    struct TCB* mainTCBptr = (struct TCB*)malloc(sizeof(struct TCB));
+    if (mainTCBptr == NULL) {
+        perror("Failed to allocate mainTCBptr");
+        exit(1);
+    }
+    ucontext_t mainContext;
+    if (getcontext(&mainContext) < 0) {
+        perror("getcontext");
+        exit(1);
+    }
+    mainTCBptr->id = 1; // initializing TCB id
+    mainTCBptr->status = READY; // initializing TCB status
+    mainTCBptr->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
+    mainTCBptr->stack = NULL;
+    mainTCBptr->context = mainContext;
+
+    mainTCB = mainTCBptr;
+    addToQueue(mainTCB);
+}
+
 /* create a new thread */
 // create Thread Control Block (TCB)
 // create and initialize the context of this worker thread
@@ -64,7 +99,8 @@ int initialize_scheduler() {
 // make it ready for the execution.
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
-    // initializes queue, main thread, and scheduler thread
+    printf("worker_create\n");
+    // initializes queue, main thread, scheduler thread, and timer
     if (init_scheduler_done == 0) {
         init_scheduler_done++;
     // initializes queue
@@ -72,27 +108,9 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     // initializes scheduler thread
         initialize_scheduler();
     // initializes main thread
-        struct TCB* mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
-        if (mainTCB == NULL) {
-            perror("Failed to allocate mainTCB");
-            exit(1);
-        }
-        ucontext_t mainContext;
-        if (getcontext(&mainContext) < 0) {
-            perror("getcontext");
-            exit(1);
-        }
-        void* mainStack = malloc(STACK_SIZE);
-	    if (mainStack == NULL) { // catching error for malloc
-            perror("Failed to allocate stack");
-            exit(1);
-	    }
-        mainTCB->id = 1; // initializing TCB id
-        mainTCB->status = READY; // initializing TCB status
-        mainTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
-        mainTCB->stack = mainStack;
-        mainTCB->context = mainContext;
-        addToQueue(mainTCB);
+        initialize_main();
+    // initializes timer
+        timer_init();
     }
     // 1 - Create Thread Control Block (TCB)
     struct TCB* workerTCB = (struct TCB*)malloc(sizeof(struct TCB));
@@ -128,7 +146,6 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
 
     // push thread into run queue for execution
     addToQueue(workerTCB);
-
     return 0;
 }
 
@@ -206,17 +223,42 @@ static void schedule()
 // - invoke scheduling algorithms according to the policy (RR or MLFQ)
 
 // - schedule policy
+
 #ifndef MLFQ
     // Choose RR
-
+    printf("Round-Robin scheduling\n");
+    sched_rr();
 #else
     // Choose MLFQ
-
+    printf("MLFQ scheduling\n");
+    sched_mlfq();
 #endif
+}
+
+/* starts the timer */
+static void timer_init() {
+    printf("timer_init\n");
+    struct sigaction sa;
+	memset (&sa, 0, sizeof(sa));
+	sa.sa_handler = &signal_handler;
+	sigaction (SIGPROF, &sa, NULL);
+
+	timer.it_interval.tv_usec = 0;
+	timer.it_interval.tv_sec = 1;
+	timer.it_value.tv_usec = 10000; // initial value = 0.01s
+	timer.it_value.tv_sec = 0;
+    setitimer(ITIMER_PROF, &timer, NULL);
+}
+
+/* sigaction function */
+static void signal_handler() {
+    printf("timer\n");
+    swapcontext(&mainTCB->context, &schedulerTCB->context);
 }
 
 static void sched_rr()
 {
+    printf("hello!\n");
     // - your own implementation of RR
     // (feel free to modify arguments and return types)
 }

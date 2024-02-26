@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "linked_list.h": "c"
+        "linked_list.h": "c",
+        "ucontext.h": "c",
+        "mutex_types.h": "c"
     }
 }

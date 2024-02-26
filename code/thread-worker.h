@@ -24,6 +24,9 @@
 /* creates scheduler TCB */
 int initialize_scheduler();
 
+/* creates main TCB */
+int initialize_main();
+
 /* create a new thread */
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg);
 
@@ -51,6 +54,12 @@ int worker_mutex_destroy(worker_mutex_t *mutex);
 
 /* scheduler */
 static void schedule();
+
+/* starts the timer */
+static void timer_init();
+
+/* sigaction function */
+static void signal_handler();
 
 static void sched_rr();
 

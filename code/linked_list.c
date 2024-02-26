@@ -57,5 +57,5 @@ void* addToQueue(struct TCB* thread) {
 
 // returns the value of a new thread id
 int newThreadId() {
-    return list->count;
+    return list->count + 1;
 }
