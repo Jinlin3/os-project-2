@@ -26,7 +26,7 @@ void* printList() {
     } else {
         struct Node* ptr = list->head;
         while (ptr != NULL) {
-            printf("%d -> ", ptr->data->id);
+            printf("%d(%d) -> ", ptr->data->id, ptr->data->status);
             ptr = ptr->next;
         }
         printf("END\n");
@@ -55,7 +55,37 @@ void* addToQueue(struct TCB* thread) {
     list->count++;
 }
 
+// moves first node to the end
+int popAndPlop() {
+    if (list->head == NULL || list->head->next == NULL) {
+        return 1;
+    }
+    struct Node* lastNode = list->head;
+    struct Node* firstNode = list->head;
+    while(lastNode->next != NULL) {
+        lastNode = lastNode->next;
+    }
+    list->head = list->head->next;
+    firstNode->next = NULL;
+    lastNode->next = firstNode;
+    return 0;
+}
+
 // returns the value of a new thread id
 int newThreadId() {
     return list->count + 1;
+}
+
+// returns the head of the queue
+struct Node* returnHead() {
+    return list->head;
+}
+
+// returns the last node of the queue
+struct Node* returnLast() {
+    struct Node* ptr = list->head;
+    while (ptr->next != NULL) {
+        ptr = ptr->next;
+    }
+    return ptr;
 }

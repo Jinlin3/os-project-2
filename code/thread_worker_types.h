@@ -2,8 +2,9 @@
 #define TW_TYPES_H
 
 #define READY 0
-#define SCHEDULED 1
+#define RUNNING 1
 #define BLOCKED 2
+#define EXIT 3
 
 // contains definitions for data structures needed for implementing threads
 

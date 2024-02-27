@@ -82,7 +82,7 @@ int initialize_main() {
         exit(1);
     }
     mainTCBptr->id = 1; // initializing TCB id
-    mainTCBptr->status = READY; // initializing TCB status
+    mainTCBptr->status = RUNNING; // initializing TCB status
     mainTCBptr->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
     mainTCBptr->stack = NULL;
     mainTCBptr->context = mainContext;
@@ -100,7 +100,11 @@ int initialize_main() {
 // make it ready for the execution.
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
-    printf("worker_create\n");
+    if (init_scheduler_done == 0) {
+        printf("first worker!\n");
+    } else {
+        printf("more workers\n");
+    }
     // initializes queue, main thread, scheduler thread, and timer
     if (init_scheduler_done == 0) {
         init_scheduler_done++;
@@ -142,11 +146,12 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
 	workerContext.uc_stack.ss_size = STACK_SIZE;
 	workerContext.uc_stack.ss_flags = 0;
 
-    makecontext(&workerContext, (void*)&function, 1, arg); // pretty sure the function takes in 1 argument
+    makecontext(&workerContext, (void (*)(void))function, 1, arg); // pretty sure the function takes in 1 argument
     workerTCB->context = workerContext;
 
     // push thread into run queue for execution
     addToQueue(workerTCB);
+
     return 0;
 }
 
@@ -227,7 +232,6 @@ static void schedule()
 
 #ifndef MLFQ
     // Choose RR
-    printf("Round-Robin scheduling\n");
     sched_rr();
 #else
     // Choose MLFQ
@@ -238,7 +242,6 @@ static void schedule()
 
 /* starts the timer */
 static void timer_init() {
-    printf("timer_init\n");
     struct sigaction sa;
 	memset (&sa, 0, sizeof(sa));
 	sa.sa_handler = &signal_handler;
@@ -253,15 +256,24 @@ static void timer_init() {
 
 /* sigaction function */
 static void signal_handler() {
-    printf("timer\n");
+    printf("ring!\n");
     swapcontext(&currentTCB->context, &schedulerTCB->context);
 }
 
 static void sched_rr()
 {
-    printf("hello!\n");
     // - your own implementation of RR
     // (feel free to modify arguments and return types)
+    while (1) {
+        printf("Round-Robin scheduling\n");
+        currentTCB->status = READY;
+        currentTCB = returnHead()->next->data;
+        printf("going to thread %d\n", currentTCB->id);
+        currentTCB->status = RUNNING;
+        popAndPlop();
+        printList();
+        swapcontext(&schedulerTCB->context, &currentTCB->context);
+    }
 }
 
 /* Preemptive MLFQ scheduling algorithm */

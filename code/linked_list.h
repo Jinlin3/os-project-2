@@ -27,7 +27,16 @@ void* printList();
 // creates a new node and returns it; parameter is a TCB struct
 void* addToQueue(struct TCB* thread);
 
+// moves first node to the end
+int popAndPlop();
+
 // returns the value of a new thread id
 int newThreadId();
+
+// returns the head of the queue
+struct Node* returnHead();
+
+// returns the last node of the queue
+struct Node* returnLast();
 
 #endif
