@@ -5,7 +5,7 @@
 struct LinkedList* list;
 
 // initializes linked list object
-void* createList() {
+void createList() {
     struct LinkedList* newList = (struct LinkedList*)malloc(sizeof(struct LinkedList));
     if (newList != NULL) {
         newList->head = NULL;
@@ -15,12 +15,12 @@ void* createList() {
 }
 
 // prints out the number of items in the queue
-void* printCount() {
+void printCount() {
     printf("Number of threads in the queue: %d\n", list->count);
 }
 
 // prints out queue
-void* printList() {
+void printList() {
     if (list->count == 0) {
         printf("The queue is empty.\n");
     } else {
@@ -34,7 +34,7 @@ void* printList() {
 }
 
 // creates a new node and returns it; parameter is a TCB struct
-void* addToQueue(struct TCB* thread) {
+void addToQueue(struct TCB* thread) {
     struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
     if (newNode == NULL) {
         printf("Memory allocation failed.\n");
@@ -77,8 +77,8 @@ int newThreadId() {
 }
 
 // returns the head of the queue
-struct Node* returnHead() {
-    return list->head;
+struct TCB* returnHead() {
+    return list->head->data;
 }
 
 // returns the last node of the queue

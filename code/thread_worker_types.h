@@ -16,7 +16,7 @@ typedef struct TCB {
     /* add important states in a thread control block */
     worker_t id; // thread Id
     int status;  // thread status
-    ucontext_t context; // thread context
+    ucontext_t* context; // thread context
     void* stack; // thread stack
     int priority; // thread priority
     // And more ...

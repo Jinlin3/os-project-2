@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 {
     worker_t worker1;
     int arg = 1;
-    worker_create(worker1, NULL, &simplef2, &arg);
+    worker_create(worker1, NULL, &simplef1, &arg);
 
 	printf("main thread end!\n");
 

@@ -39,57 +39,43 @@ struct itimerval timer;
 
 /* creates scheduler TCB */
 int initialize_scheduler() {
-    struct TCB* schedulerTCBptr = (struct TCB*)malloc(sizeof(struct TCB));
-    if (schedulerTCBptr == NULL) {
-        perror("Failed to allocate mainTCB");
-        exit(1);
-    }
-    ucontext_t schedulerContext;
-    if (getcontext(&schedulerContext) < 0) {
-        perror("getcontext");
-        exit(1);
-    }
+
+    schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
+
+    ucontext_t* schedulerContext = malloc(sizeof(ucontext_t));
+    getcontext(schedulerContext);
+
     void* schedulerStack = malloc(STACK_SIZE);
-    if (schedulerStack == NULL) { // catching error for malloc
-        perror("Failed to allocate stack");
-        exit(1);
-    }
-    schedulerContext.uc_link = NULL;
-    schedulerContext.uc_stack.ss_sp = schedulerStack;
-    schedulerContext.uc_stack.ss_size = STACK_SIZE;
-    schedulerContext.uc_stack.ss_flags = 0;
-    makecontext(&schedulerContext,(void*)&schedule, 0); // ERROR HERE PLZ FIX
 
-    schedulerTCBptr->id = 0; // initializing TCB id
-    schedulerTCBptr->status = READY; // initializing TCB status
-    schedulerTCBptr->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
-    schedulerTCBptr->stack = schedulerStack;
-    schedulerTCBptr->context = schedulerContext;
+    schedulerContext->uc_link = NULL;
+    schedulerContext->uc_stack.ss_sp = schedulerStack;
+    schedulerContext->uc_stack.ss_size = STACK_SIZE;
+    schedulerContext->uc_stack.ss_flags = 0;
+    makecontext(schedulerContext,(void*)&schedule, 0);
 
-    schedulerTCB = schedulerTCBptr;
+    schedulerTCB->id = 0; // initializing TCB id
+    schedulerTCB->status = READY; // initializing TCB status
+    schedulerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
+    schedulerTCB->stack = schedulerStack;
+    schedulerTCB->context = schedulerContext;
 }
 
 /* creates main TCB */
 int initialize_main() {
-    struct TCB* mainTCBptr = (struct TCB*)malloc(sizeof(struct TCB));
-    if (mainTCBptr == NULL) {
-        perror("Failed to allocate mainTCBptr");
-        exit(1);
-    }
-    ucontext_t mainContext;
-    if (getcontext(&mainContext) < 0) {
-        perror("getcontext");
-        exit(1);
-    }
-    mainTCBptr->id = 1; // initializing TCB id
-    mainTCBptr->status = RUNNING; // initializing TCB status
-    mainTCBptr->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
-    mainTCBptr->stack = NULL;
-    mainTCBptr->context = mainContext;
 
-    mainTCB = mainTCBptr;
+    mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
+
+    ucontext_t* mainContext = malloc(sizeof(ucontext_t));
+    getcontext(mainContext);
+
+    mainTCB->id = 1; // initializing TCB id
+    mainTCB->status = RUNNING; // initializing TCB status
+    mainTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
+    mainTCB->stack = NULL;
+    mainTCB->context = mainContext;
+    currentTCB = mainTCB;
+
     addToQueue(mainTCB);
-    currentTCB = mainTCB; // changes the current context to the main context, because it is
 }
 
 /* create a new thread */
@@ -119,25 +105,16 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     }
     // 1 - Create Thread Control Block (TCB)
     struct TCB* workerTCB = (struct TCB*)malloc(sizeof(struct TCB));
-    if (workerTCB == NULL) {
-        perror("Failed to allocate mainTCB");
-        exit(1);
-    }
-    ucontext_t workerContext;
-    if (getcontext(&workerContext) < 0) {
-        perror("getcontext");
-        exit(1);
-    }
+
+    ucontext_t *workerContext = malloc(sizeof(ucontext_t));
+    getcontext(workerContext);
+
     void* workerStack = malloc(STACK_SIZE);
-    if (workerStack == NULL) { // catching error for malloc
-        perror("Failed to allocate stack");
-        exit(1);
-    }
-    workerContext.uc_link = NULL;
-    workerContext.uc_stack.ss_sp = workerStack;
-    workerContext.uc_stack.ss_size = STACK_SIZE;
-    workerContext.uc_stack.ss_flags = 0;
-    makecontext(&workerContext,(void*)&function, 0);
+    workerContext->uc_link = NULL;
+    workerContext->uc_stack.ss_sp = workerStack;
+    workerContext->uc_stack.ss_size = STACK_SIZE;
+    workerContext->uc_stack.ss_flags = 0;
+    makecontext(workerContext, function, 0);
 
     workerTCB->id = newThreadId(); // initializing TCB id
     workerTCB->status = READY; // initializing TCB status
@@ -231,7 +208,6 @@ static void schedule()
     sched_rr();
 #else
     // Choose MLFQ
-    printf("MLFQ scheduling\n");
     sched_mlfq();
 #endif
 }
@@ -253,23 +229,18 @@ static void timer_init() {
 /* sigaction function */
 static void signal_handler() {
     printf("ring!\n");
-    swapcontext(&currentTCB->context, &schedulerTCB->context);
+    // swapcontext(&currentTCB->context, &schedulerTCB->context);
 }
 
 static void sched_rr()
 {
     // - your own implementation of RR
     // (feel free to modify arguments and return types)
-    while (1) {
-        printf("Round-Robin scheduling\n");
-        currentTCB->status = READY;
-        currentTCB = returnHead()->next->data;
-        printf("currentTCB: %d\n", currentTCB->id);
-        currentTCB->status = RUNNING;
-        popAndPlop();
-        printList();
-        swapcontext(&schedulerTCB->context, &currentTCB->context);
-    }
+    currentTCB->status = READY;
+    popAndPlop();
+    currentTCB = returnHead();
+    currentTCB->status = RUNNING;
+    swapcontext(schedulerTCB->context, currentTCB->context);
 }
 
 /* Preemptive MLFQ scheduling algorithm */
