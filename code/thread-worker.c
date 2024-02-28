@@ -229,7 +229,7 @@ static void timer_init() {
 /* sigaction function */
 static void signal_handler() {
     printf("ring!\n");
-    // swapcontext(&currentTCB->context, &schedulerTCB->context);
+    swapcontext(currentTCB->context, schedulerTCB->context);
 }
 
 static void sched_rr()
