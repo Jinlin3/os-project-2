@@ -120,36 +120,32 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     // 1 - Create Thread Control Block (TCB)
     struct TCB* workerTCB = (struct TCB*)malloc(sizeof(struct TCB));
     if (workerTCB == NULL) {
-        perror("Failed to allocate workerTCB");
+        perror("Failed to allocate mainTCB");
         exit(1);
     }
+    ucontext_t workerContext;
+    if (getcontext(&workerContext) < 0) {
+        perror("getcontext");
+        exit(1);
+    }
+    void* workerStack = malloc(STACK_SIZE);
+    if (workerStack == NULL) { // catching error for malloc
+        perror("Failed to allocate stack");
+        exit(1);
+    }
+    workerContext.uc_link = NULL;
+    workerContext.uc_stack.ss_sp = workerStack;
+    workerContext.uc_stack.ss_size = STACK_SIZE;
+    workerContext.uc_stack.ss_flags = 0;
+    makecontext(&workerContext,(void*)&function, 0);
+
     workerTCB->id = newThreadId(); // initializing TCB id
     workerTCB->status = READY; // initializing TCB status
     workerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
-
-    // 2 - create and initialize the context of this worker thread
-    ucontext_t workerContext;
-    if (getcontext(&workerContext) < 0) {
-		perror("getcontext");
-		exit(1);
-	}
-    // allocate space of stack for this thread to run
-    void* stack = malloc(STACK_SIZE);
-	if (stack == NULL) { // catching error for malloc
-		perror("Failed to allocate stack");
-		exit(1);
-	}
-    workerTCB->stack = stack;
-    // setting up context
-	workerContext.uc_link = NULL;
-	workerContext.uc_stack.ss_sp = stack;
-	workerContext.uc_stack.ss_size = STACK_SIZE;
-	workerContext.uc_stack.ss_flags = 0;
-
-    makecontext(&workerContext, (void (*)(void))function, 1, arg); // pretty sure the function takes in 1 argument
+    workerTCB->stack = workerStack;
     workerTCB->context = workerContext;
 
-    // push thread into run queue for execution
+    printf("added worker %d to queue!\n", workerTCB->id);
     addToQueue(workerTCB);
 
     return 0;
@@ -249,8 +245,8 @@ static void timer_init() {
 
 	timer.it_interval.tv_usec = 0;
 	timer.it_interval.tv_sec = 1;
-	timer.it_value.tv_usec = 10000; // initial value = 0.01s
-	timer.it_value.tv_sec = 0;
+	timer.it_value.tv_usec = 0;
+	timer.it_value.tv_sec = 1;
     setitimer(ITIMER_PROF, &timer, NULL);
 }
 
@@ -268,7 +264,7 @@ static void sched_rr()
         printf("Round-Robin scheduling\n");
         currentTCB->status = READY;
         currentTCB = returnHead()->next->data;
-        printf("going to thread %d\n", currentTCB->id);
+        printf("currentTCB: %d\n", currentTCB->id);
         currentTCB->status = RUNNING;
         popAndPlop();
         printList();
