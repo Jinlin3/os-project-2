@@ -128,12 +128,12 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
 /* give CPU possession to other user-level worker threads voluntarily */
 int worker_yield()
 {
-    printf("YIELD FROM: %d\n", currentTCB->id);
-    currentTCB->status = READY;
-    swapcontext(currentTCB->context, schedulerTCB->context);
     // - change worker thread's state from Running to Ready
     // - save context of this thread to its thread control block
     // - switch from thread context to scheduler context
+    printf("YIELD FROM: %d\n", currentTCB->id);
+    currentTCB->status = READY;
+    swapcontext(currentTCB->context, schedulerTCB->context);
     return 0;
 };
 
