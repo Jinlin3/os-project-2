@@ -27,7 +27,6 @@
 
 // INITIALIZE ALL YOUR OTHER VARIABLES HERE
 int init_scheduler_done = 0;
-
 // SCHEDULER TCB
 struct TCB* schedulerTCB;
 // MAIN TCB
@@ -39,7 +38,7 @@ struct itimerval timer;
 
 /* creates scheduler TCB */
 int initialize_scheduler() {
-
+    printf("creating scheduler context\n");
     schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
     ucontext_t* schedulerContext = malloc(sizeof(ucontext_t));
@@ -51,7 +50,7 @@ int initialize_scheduler() {
     schedulerContext->uc_stack.ss_sp = schedulerStack;
     schedulerContext->uc_stack.ss_size = STACK_SIZE;
     schedulerContext->uc_stack.ss_flags = 0;
-    makecontext(schedulerContext,(void*)&schedule, 0);
+    makecontext(schedulerContext, &schedule, 0);
 
     schedulerTCB->id = 0; // initializing TCB id
     schedulerTCB->status = READY; // initializing TCB status
@@ -62,7 +61,7 @@ int initialize_scheduler() {
 
 /* creates main TCB */
 int initialize_main() {
-
+    printf("creating main context\n");
     mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
     ucontext_t* mainContext = malloc(sizeof(ucontext_t));
@@ -86,22 +85,12 @@ int initialize_main() {
 // make it ready for the execution.
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
-    if (init_scheduler_done == 0) {
-        printf("first worker!\n");
-    } else {
-        printf("more workers\n");
-    }
     // initializes queue, main thread, scheduler thread, and timer
     if (init_scheduler_done == 0) {
-        init_scheduler_done++;
     // initializes queue
         createList();
-    // initializes scheduler thread
-        initialize_scheduler();
     // initializes main thread
         initialize_main();
-    // initializes timer
-        timer_init();
     }
     // 1 - Create Thread Control Block (TCB)
     struct TCB* workerTCB = (struct TCB*)malloc(sizeof(struct TCB));
@@ -122,15 +111,26 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     workerTCB->stack = workerStack;
     workerTCB->context = workerContext;
 
-    printf("added worker %d to queue!\n", workerTCB->id);
+    printf("creating worker %d!\n", workerTCB->id);
     addToQueue(workerTCB);
 
+    // initializes queue, main thread, scheduler thread, and timer
+    if (init_scheduler_done == 0) {
+        init_scheduler_done++;
+    // initializes scheduler thread
+        initialize_scheduler();
+    // initializes timer
+        timer_init();
+    }
     return 0;
 }
 
 /* give CPU possession to other user-level worker threads voluntarily */
 int worker_yield()
 {
+    printf("YIELD FROM: %d\n", currentTCB->id);
+    currentTCB->status = READY;
+    swapcontext(currentTCB->context, schedulerTCB->context);
     // - change worker thread's state from Running to Ready
     // - save context of this thread to its thread control block
     // - switch from thread context to scheduler context
@@ -214,22 +214,28 @@ static void schedule()
 
 /* starts the timer */
 static void timer_init() {
+    printf("starting the timer\n");
     struct sigaction sa;
 	memset (&sa, 0, sizeof(sa));
-	sa.sa_handler = &signal_handler;
-	sigaction (SIGPROF, &sa, NULL);
+	sa.sa_handler = &timer_handler;
+	if (sigaction(SIGPROF, &sa, NULL) == -1) {
+        perror("Error setting up signal handler\n");
+        exit(EXIT_FAILURE);
+    };
 
 	timer.it_interval.tv_usec = 0;
 	timer.it_interval.tv_sec = 1;
 	timer.it_value.tv_usec = 0;
 	timer.it_value.tv_sec = 1;
-    setitimer(ITIMER_PROF, &timer, NULL);
+    if (setitimer(ITIMER_PROF, &timer, NULL) == -1) {
+        perror("Error setting up timer\n");
+        exit(EXIT_FAILURE);
+    };
 }
 
-/* sigaction function */
-static void signal_handler() {
-    printf("ring!\n");
-    swapcontext(currentTCB->context, schedulerTCB->context);
+void timer_handler() {
+    printf("RINGRINGRING\n");
+    setcontext(schedulerTCB->context);
 }
 
 static void sched_rr()
@@ -240,7 +246,8 @@ static void sched_rr()
     popAndPlop();
     currentTCB = returnHead();
     currentTCB->status = RUNNING;
-    swapcontext(schedulerTCB->context, currentTCB->context);
+    printf("SWITCH TO: THREAD %d\n", currentTCB->id);
+    setcontext(currentTCB->context);
 }
 
 /* Preemptive MLFQ scheduling algorithm */

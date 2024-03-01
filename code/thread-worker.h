@@ -58,8 +58,7 @@ static void schedule();
 /* starts the timer */
 static void timer_init();
 
-/* sigaction function */
-static void signal_handler();
+void timer_handler();
 
 static void sched_rr();
 

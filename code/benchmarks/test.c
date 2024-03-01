@@ -11,18 +11,26 @@
 #include "../linked_list.h"
 
 void simplef1(void* arg) {
-	printf("in thread 1!\n");
+    printList();
+    printf("simplef1!\n");
 }
 
 void simplef2(void* arg) {
-	printf("in thread 2!\n");
+    printList();
+	printf("simplef2!\n");
 }
 
 int main(int argc, char **argv)
 {
     worker_t worker1;
-    int arg = 1;
-    worker_create(worker1, NULL, &simplef1, &arg);
+    int arg1 = 1;
+    worker_create(worker1, NULL, &simplef1, &arg1);
+
+    worker_t worker2;
+    int arg2 = 2;
+    worker_create(worker2, NULL, &simplef2, &arg2);
+
+    worker_yield();
 
 	printf("main thread end!\n");
 
