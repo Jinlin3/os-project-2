@@ -67,10 +67,12 @@ int initialize_main() {
     ucontext_t* mainContext = malloc(sizeof(ucontext_t));
     getcontext(mainContext);
 
+    void* mainStack = malloc(STACK_SIZE);
+
     mainTCB->id = 1; // initializing TCB id
     mainTCB->status = RUNNING; // initializing TCB status
     mainTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
-    mainTCB->stack = NULL;
+    mainTCB->stack = mainStack;
     mainTCB->context = mainContext;
     currentTCB = mainTCB;
 
@@ -142,6 +144,14 @@ void worker_exit(void *value_ptr)
 {
     // - if value_ptr is provided, save return value
     // - de-allocate any dynamic memory created when starting this thread (could be done here or elsewhere)
+    currentTCB->status = EXIT;
+    currentTCB->exitValuePtr = value_ptr;
+
+    free(currentTCB->stack);
+    free(currentTCB->context);
+    free(currentTCB);
+
+    pop(currentTCB); // removes it from queue
 }
 
 /* Wait for thread termination */

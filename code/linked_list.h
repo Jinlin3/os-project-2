@@ -25,7 +25,10 @@ void createList();
 void printList();
 
 // creates a new node and returns it; parameter is a TCB struct
-void addToQueue(struct TCB* thread);
+void addToQueue(struct TCB* tcb);
+
+// pops a node from the list
+int pop(struct TCB* tcb);
 
 // moves first node to the end
 int popAndPlop();

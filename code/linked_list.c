@@ -34,13 +34,13 @@ void printList() {
 }
 
 // creates a new node and returns it; parameter is a TCB struct
-void addToQueue(struct TCB* thread) {
+void addToQueue(struct TCB* tcb) {
     struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
     if (newNode == NULL) {
         printf("Memory allocation failed.\n");
         exit(1);
     }
-    newNode->data = thread;
+    newNode->data = tcb;
     newNode->next = NULL;
     
     if (list->count == 0) {
@@ -55,6 +55,32 @@ void addToQueue(struct TCB* thread) {
     list->count++;
 }
 
+// pops a node from the list
+int pop(struct TCB* tcb) {
+    if (list->count < 2) {
+        printf("Too little items!\n");
+        return 1;
+    }
+    if (list->head->data->id == tcb->id) { // if list head is the one that needs to be popped
+        struct Node* newHead = list->head->next;
+        list->head->next = NULL;
+        list->head = newHead;
+    } else { // if list head does not need to be popped
+        struct Node* before = list->head;
+        struct Node* after;
+        while (before->next->data->id != tcb->id) {
+            before = before->next;
+        }
+        if (before->next->next == NULL) {
+            before->next = NULL;
+        } else {
+            after = before->next->next;
+            before->next = after;
+        }
+        return 0;
+    }
+}
+
 // moves first node to the end
 int popAndPlop() {
     if (list->head == NULL || list->head->next == NULL) {
@@ -62,7 +88,7 @@ int popAndPlop() {
     }
     struct Node* lastNode = list->head;
     struct Node* firstNode = list->head;
-    while(lastNode->next != NULL) {
+    while (lastNode->next != NULL) {
         lastNode = lastNode->next;
     }
     list->head = list->head->next;
