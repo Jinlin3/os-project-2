@@ -1,36 +1,37 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <ucontext.h>
-
 #include "../thread-worker.h"
-#include "../linked_list.h"
 
-void simplef1(void* arg) {
-    printList();
-    printf("simplef1!\n");
-}
+void dummy_work(void *arg)
+{
+    int i = 0;
+    int j = 0;
+    int n = *((int *)arg);
 
-void simplef2(void* arg) {
-    printList();
-	printf("simplef2!\n");
+    for (i = 0; i < 20; i++)
+    {
+        for (j = 0; j < 10000000; j++)
+        {
+        }
+        printf("Thread %d running\n", n);
+    }
+
+    printf("Thread %d exiting\n", n);
+    worker_exit(NULL);
 }
 
 int main(int argc, char **argv)
 {
-    worker_t worker1, worker2;
-    int arg1 = 1, arg2 = 2;
+    printf("Running main thread\n");
+    worker_t thread;
 
-    worker_create(&worker1, NULL, &simplef1, &arg1);
-    worker_create(&worker2, NULL, &simplef2, &arg2);
+    int id = 1;
+    worker_create(&thread, NULL, &dummy_work, &id);
 
-    worker_yield();
+    printf("Main thread waiting\n");
+    worker_join(thread, NULL);
+    printf("Main thread resume\n");
 
-	printf("main thread end!\n");
-
-	return 0;
+    printf("Main thread exit\n");
+    return 0;
 }

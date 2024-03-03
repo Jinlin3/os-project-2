@@ -42,4 +42,6 @@ struct TCB* returnHead();
 // returns the last node of the queue
 struct Node* returnLast();
 
+struct TCB* searchTCB(worker_t thread);
+
 #endif

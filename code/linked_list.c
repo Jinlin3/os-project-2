@@ -115,3 +115,13 @@ struct Node* returnLast() {
     }
     return ptr;
 }
+
+struct TCB* searchTCB(worker_t thread) {
+    struct Node* ptr = list->head;
+    while (ptr->data->id != thread) {
+        printf("current ptr -> %d\n", ptr->data->id);
+        printf("cycle\n");
+        ptr = ptr->next;
+    }
+    return ptr->data;
+}

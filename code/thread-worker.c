@@ -105,7 +105,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     workerContext->uc_stack.ss_sp = workerStack;
     workerContext->uc_stack.ss_size = STACK_SIZE;
     workerContext->uc_stack.ss_flags = 0;
-    makecontext(workerContext, function, 0);
+    makecontext(workerContext, function, 1, arg);
 
     workerTCB->id = newThreadId(); // initializing TCB id
     workerTCB->status = READY; // initializing TCB status
@@ -157,10 +157,12 @@ void worker_exit(void *value_ptr)
 /* Wait for thread termination */
 int worker_join(worker_t thread, void **value_ptr)
 {
-
     // - wait for a specific thread to terminate
     // - if value_ptr is provided, retrieve return value from joining thread
     // - de-allocate any dynamic memory created by the joining thread
+    struct TCB* targetTCB = searchTCB(thread);
+    targetTCB->joinValuePtr = value_ptr;
+    while (targetTCB->status != EXIT);
     return 0;
 };
 
@@ -233,10 +235,10 @@ static void timer_init() {
         exit(EXIT_FAILURE);
     };
 
-	timer.it_interval.tv_usec = 0;
-	timer.it_interval.tv_sec = 1;
-	timer.it_value.tv_usec = 0;
-	timer.it_value.tv_sec = 1;
+	timer.it_interval.tv_usec = QUANTUM;
+	timer.it_interval.tv_sec = 0;
+	timer.it_value.tv_usec = QUANTUM;
+	timer.it_value.tv_sec = 0;
     if (setitimer(ITIMER_PROF, &timer, NULL) == -1) {
         perror("Error setting up timer\n");
         exit(EXIT_FAILURE);
@@ -257,6 +259,7 @@ static void sched_rr()
     currentTCB = returnHead();
     currentTCB->status = RUNNING;
     printf("SWITCH TO: THREAD %d\n", currentTCB->id);
+    printList();
     setcontext(currentTCB->context);
 }
 

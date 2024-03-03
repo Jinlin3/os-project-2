@@ -19,8 +19,8 @@ typedef struct TCB {
     ucontext_t* context; // thread context
     void* stack; // thread stack
     int priority; // thread priority
-    void* exitValuePtr;
-    void** joinValuePtr;
+    void* exitValuePtr; // for worker_exit
+    void** joinValuePtr; // for worker_join
     // And more ...
 
     // YOUR CODE HERE
