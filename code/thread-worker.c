@@ -20,7 +20,7 @@
 #include <ucontext.h>
 
 #define STACK_SIZE 16 * 1024
-#define QUANTUM 1 * 100000 // 0.5s
+#define QUANTUM 2 * 100000 // 0.5s
 // #define QUANTUM 10 * 1000
 
 // INITIALIZE ALL YOUR OTHER VARIABLES HERE
@@ -153,6 +153,7 @@ void worker_exit(void *value_ptr)
 /* Wait for thread termination */
 int worker_join(worker_t thread, void **value_ptr)
 {
+    getcontext(mainTCB);
     printf("    WORKER JOIN: %d\n", thread);
     // - wait for a specific thread to terminate
     // - if value_ptr is provided, retrieve return value from joining thread
@@ -160,14 +161,14 @@ int worker_join(worker_t thread, void **value_ptr)
     struct TCB* targetTCB = searchTCB(thread);
     targetTCB->joinValuePtr = value_ptr;
     while (targetTCB->status != EXIT) {
-
+        
     }
     printf("    WORKER JOINED: %d\n", thread);
     printf("    FREEING WORKER %d\n", thread);
-    free(currentTCB->stack);
-    free(currentTCB->context);
-    pop(currentTCB); // removes it from queue
-    free(currentTCB);
+    free(targetTCB->stack);
+    free(targetTCB->context);
+    pop(targetTCB); // removes it from queue
+    free(targetTCB);
 
     return 0;
 };
@@ -260,9 +261,6 @@ static void sched_rr()
 {
     // - your own implementation of RR
     // (feel free to modify arguments and return types)
-
-    printf("    SCHEDULER\n");
-    printf("    ROTATING\n");
 
     if (currentTCB->status != EXIT) {
         currentTCB->status = READY;
