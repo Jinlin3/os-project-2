@@ -142,10 +142,12 @@ int worker_yield()
 /* terminate a thread */
 void worker_exit(void *value_ptr)
 {
+    printf("    EXITING WORKER: %d\n", currentTCB->id);
     // - if value_ptr is provided, save return value
     // - de-allocate any dynamic memory created when starting this thread (could be done here or elsewhere)
     currentTCB->status = EXIT;
     currentTCB->exitValuePtr = value_ptr;
+    printf("EXIT STATUS: %d\n", *(int*)currentTCB->exitValuePtr);
 
     setcontext(schedulerTCB->context);
 }
@@ -159,12 +161,14 @@ int worker_join(worker_t thread, void **value_ptr)
     // - if value_ptr is provided, retrieve return value from joining thread
     // - de-allocate any dynamic memory created by the joining thread
     struct TCB* targetTCB = searchTCB(thread);
-    targetTCB->joinValuePtr = value_ptr;
     while (targetTCB->status != EXIT) {
         worker_yield();
     }
     printf("    WORKER JOINED: %d\n", thread);
     printf("    FREEING WORKER %d\n", thread);
+
+    *value_ptr = targetTCB->exitValuePtr;
+
     free(targetTCB->stack);
     free(targetTCB->context);
     pop(targetTCB); // removes it from queue
@@ -181,7 +185,7 @@ int worker_mutex_init(worker_mutex_t *mutex,
     return 0;
 };
 
-/* aquire the mutex lock */
+/* acquire the mutex lock */
 int worker_mutex_lock(worker_mutex_t *mutex)
 {
 

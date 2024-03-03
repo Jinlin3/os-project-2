@@ -20,7 +20,6 @@ typedef struct TCB {
     void* stack; // thread stack
     int priority; // thread priority
     void* exitValuePtr; // for worker_exit
-    void** joinValuePtr; // for worker_join
     // And more ...
 
     // YOUR CODE HERE
