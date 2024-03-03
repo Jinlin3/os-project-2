@@ -26,7 +26,11 @@ void printList() {
     } else {
         struct Node* ptr = list->head;
         while (ptr != NULL) {
-            printf("%d(%d) -> ", ptr->data->id, ptr->data->status);
+            if (ptr->data->id == 100) {
+                printf("MAIN(%d) -> ", ptr->data->status);
+            } else {
+                printf("%d(%d) -> ", ptr->data->id, ptr->data->status);
+            }
             ptr = ptr->next;
         }
         printf("END\n");
@@ -103,8 +107,13 @@ int newThreadId() {
 }
 
 // returns the head of the queue
-struct TCB* returnHead() {
+struct TCB* returnHeadTCB() {
     return list->head->data;
+}
+
+// returns the head of the queue
+struct Node* returnHeadNode() {
+    return list->head;
 }
 
 // returns the last node of the queue
@@ -119,8 +128,6 @@ struct Node* returnLast() {
 struct TCB* searchTCB(worker_t thread) {
     struct Node* ptr = list->head;
     while (ptr->data->id != thread) {
-        printf("current ptr -> %d\n", ptr->data->id);
-        printf("cycle\n");
         ptr = ptr->next;
     }
     return ptr->data;

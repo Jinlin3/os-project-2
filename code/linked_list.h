@@ -37,7 +37,9 @@ int popAndPlop();
 int newThreadId();
 
 // returns the head of the queue
-struct TCB* returnHead();
+struct TCB* returnHeadTCB();
+
+struct Node* returnHeadNode();
 
 // returns the last node of the queue
 struct Node* returnLast();

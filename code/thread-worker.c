@@ -20,13 +20,13 @@
 #include <ucontext.h>
 
 #define STACK_SIZE 16 * 1024
-#define QUANTUM 5 * 100000 // 0.5s
+#define QUANTUM 1 * 100000 // 0.5s
 // #define QUANTUM 10 * 1000
-
-// scheduler id = 0, main id = 1, workers = 2+
 
 // INITIALIZE ALL YOUR OTHER VARIABLES HERE
 int init_scheduler_done = 0;
+// WORKER ID'S
+int workerIdCount = 1;
 // SCHEDULER TCB
 struct TCB* schedulerTCB;
 // MAIN TCB
@@ -38,7 +38,7 @@ struct itimerval timer;
 
 /* creates scheduler TCB */
 int initialize_scheduler() {
-    printf("creating scheduler context\n");
+    printf("    creating scheduler context\n");
     schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
     ucontext_t* schedulerContext = malloc(sizeof(ucontext_t));
@@ -59,26 +59,6 @@ int initialize_scheduler() {
     schedulerTCB->context = schedulerContext;
 }
 
-/* creates main TCB */
-int initialize_main() {
-    printf("creating main context\n");
-    mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
-
-    ucontext_t* mainContext = malloc(sizeof(ucontext_t));
-    getcontext(mainContext);
-
-    void* mainStack = malloc(STACK_SIZE);
-
-    mainTCB->id = 1; // initializing TCB id
-    mainTCB->status = RUNNING; // initializing TCB status
-    mainTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
-    mainTCB->stack = mainStack;
-    mainTCB->context = mainContext;
-    currentTCB = mainTCB;
-
-    addToQueue(mainTCB);
-}
-
 /* create a new thread */
 // create Thread Control Block (TCB)
 // create and initialize the context of this worker thread
@@ -92,12 +72,28 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     // initializes queue
         createList();
     // initializes main thread
-        initialize_main();
+        printf("    creating main context\n");
+        mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
+
+        ucontext_t* mainContext = malloc(sizeof(ucontext_t));
+        getcontext(mainContext);
+
+        void* mainStack = malloc(STACK_SIZE);
+
+        mainTCB->id = 1000; // initializing TCB id
+        mainTCB->status = RUNNING; // initializing TCB status
+        mainTCB->priority = 1; // setting main thread id to 1
+        mainTCB->stack = mainStack;
+        mainTCB->context = mainContext;
+        currentTCB = mainTCB;
+
+        addToQueue(mainTCB);
     }
+
     // 1 - Create Thread Control Block (TCB)
     struct TCB* workerTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
-    ucontext_t *workerContext = malloc(sizeof(ucontext_t));
+    ucontext_t* workerContext = malloc(sizeof(ucontext_t));
     getcontext(workerContext);
 
     void* workerStack = malloc(STACK_SIZE);
@@ -107,14 +103,18 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     workerContext->uc_stack.ss_flags = 0;
     makecontext(workerContext, function, 1, arg);
 
-    workerTCB->id = newThreadId(); // initializing TCB id
+    *thread = workerIdCount;
+    workerIdCount++;
+
+    workerTCB->id = *thread; // initializing TCB id
     workerTCB->status = READY; // initializing TCB status
     workerTCB->priority = 1; // initializing TCB priority to 1 (CHANGE THIS LATER)
     workerTCB->stack = workerStack;
     workerTCB->context = workerContext;
 
-    printf("creating worker %d!\n", workerTCB->id);
+    printf("    creating worker %d!\n", workerTCB->id);
     addToQueue(workerTCB);
+    getcontext(mainTCB->context);
 
     // initializes queue, main thread, scheduler thread, and timer
     if (init_scheduler_done == 0) {
@@ -133,7 +133,7 @@ int worker_yield()
     // - change worker thread's state from Running to Ready
     // - save context of this thread to its thread control block
     // - switch from thread context to scheduler context
-    printf("YIELD FROM: %d\n", currentTCB->id);
+    printf("    YIELD FROM: %d\n", currentTCB->id);
     currentTCB->status = READY;
     swapcontext(currentTCB->context, schedulerTCB->context);
     return 0;
@@ -147,22 +147,28 @@ void worker_exit(void *value_ptr)
     currentTCB->status = EXIT;
     currentTCB->exitValuePtr = value_ptr;
 
-    free(currentTCB->stack);
-    free(currentTCB->context);
-    free(currentTCB);
-
-    pop(currentTCB); // removes it from queue
+    setcontext(schedulerTCB->context);
 }
 
 /* Wait for thread termination */
 int worker_join(worker_t thread, void **value_ptr)
 {
+    printf("    WORKER JOIN: %d\n", thread);
     // - wait for a specific thread to terminate
     // - if value_ptr is provided, retrieve return value from joining thread
     // - de-allocate any dynamic memory created by the joining thread
     struct TCB* targetTCB = searchTCB(thread);
     targetTCB->joinValuePtr = value_ptr;
-    while (targetTCB->status != EXIT);
+    while (targetTCB->status != EXIT) {
+
+    }
+    printf("    WORKER JOINED: %d\n", thread);
+    printf("    FREEING WORKER %d\n", thread);
+    free(currentTCB->stack);
+    free(currentTCB->context);
+    pop(currentTCB); // removes it from queue
+    free(currentTCB);
+
     return 0;
 };
 
@@ -226,7 +232,7 @@ static void schedule()
 
 /* starts the timer */
 static void timer_init() {
-    printf("starting the timer\n");
+    printf("    starting the timer\n");
     struct sigaction sa;
 	memset (&sa, 0, sizeof(sa));
 	sa.sa_handler = &timer_handler;
@@ -246,7 +252,7 @@ static void timer_init() {
 }
 
 void timer_handler() {
-    printf("RINGRINGRING\n");
+    printf("    RINGRINGRING\n");
     setcontext(schedulerTCB->context);
 }
 
@@ -254,11 +260,19 @@ static void sched_rr()
 {
     // - your own implementation of RR
     // (feel free to modify arguments and return types)
-    currentTCB->status = READY;
-    popAndPlop();
-    currentTCB = returnHead();
+
+    printf("    SCHEDULER\n");
+    printf("    ROTATING\n");
+
+    if (currentTCB->status != EXIT) {
+        currentTCB->status = READY;
+    }
+    do {
+        popAndPlop();
+        currentTCB = returnHeadTCB();
+    } while (currentTCB->status != READY);
     currentTCB->status = RUNNING;
-    printf("SWITCH TO: THREAD %d\n", currentTCB->id);
+    printf("    SWITCH TO: THREAD %d\n", currentTCB->id);
     printList();
     setcontext(currentTCB->context);
 }

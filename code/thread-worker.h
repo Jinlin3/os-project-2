@@ -24,9 +24,6 @@
 /* creates scheduler TCB */
 int initialize_scheduler();
 
-/* creates main TCB */
-int initialize_main();
-
 /* create a new thread */
 int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg);
 
