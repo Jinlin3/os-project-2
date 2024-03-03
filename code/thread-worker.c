@@ -161,7 +161,7 @@ int worker_join(worker_t thread, void **value_ptr)
     struct TCB* targetTCB = searchTCB(thread);
     targetTCB->joinValuePtr = value_ptr;
     while (targetTCB->status != EXIT) {
-        
+        worker_yield();
     }
     printf("    WORKER JOINED: %d\n", thread);
     printf("    FREEING WORKER %d\n", thread);
@@ -254,7 +254,7 @@ static void timer_init() {
 
 void timer_handler() {
     printf("    RINGRINGRING\n");
-    setcontext(schedulerTCB->context);
+    swapcontext(currentTCB->context, schedulerTCB->context);
 }
 
 static void sched_rr()
