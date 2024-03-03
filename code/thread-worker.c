@@ -146,8 +146,13 @@ void worker_exit(void *value_ptr)
     // - if value_ptr is provided, save return value
     // - de-allocate any dynamic memory created when starting this thread (could be done here or elsewhere)
     currentTCB->status = EXIT;
-    currentTCB->exitValuePtr = value_ptr;
-    printf("EXIT STATUS: %d\n", *(int*)currentTCB->exitValuePtr);
+    if (value_ptr != NULL) {
+        currentTCB->exitValuePtr = value_ptr;
+        printf("    EXIT VALUE: %d\n", *(int*)currentTCB->exitValuePtr);
+    } else {
+        printf("    EXIT STATUS: No value provided\n");
+    }
+    
 
     setcontext(schedulerTCB->context);
 }
@@ -155,8 +160,8 @@ void worker_exit(void *value_ptr)
 /* Wait for thread termination */
 int worker_join(worker_t thread, void **value_ptr)
 {
+    printf("    WORKER JOIN\n");
     getcontext(mainTCB);
-    printf("    WORKER JOIN: %d\n", thread);
     // - wait for a specific thread to terminate
     // - if value_ptr is provided, retrieve return value from joining thread
     // - de-allocate any dynamic memory created by the joining thread
@@ -164,10 +169,11 @@ int worker_join(worker_t thread, void **value_ptr)
     while (targetTCB->status != EXIT) {
         worker_yield();
     }
-    printf("    WORKER JOINED: %d\n", thread);
     printf("    FREEING WORKER %d\n", thread);
 
-    *value_ptr = targetTCB->exitValuePtr;
+    if (targetTCB->exitValuePtr != NULL) {
+        *value_ptr = targetTCB->exitValuePtr;
+    }
 
     free(targetTCB->stack);
     free(targetTCB->context);
@@ -257,7 +263,7 @@ static void timer_init() {
 }
 
 void timer_handler() {
-    printf("    RINGRINGRING\n");
+    printf("    TIMER UP!\n");
     swapcontext(currentTCB->context, schedulerTCB->context);
 }
 
