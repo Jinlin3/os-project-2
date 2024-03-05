@@ -153,7 +153,6 @@ void worker_exit(void *value_ptr)
         printf("    EXIT STATUS: No value provided\n");
     }
     
-
     setcontext(schedulerTCB->context);
 }
 
@@ -179,6 +178,14 @@ int worker_join(worker_t thread, void **value_ptr)
     free(targetTCB->context);
     pop(targetTCB); // removes it from queue
     free(targetTCB);
+
+    // print number of threads left to see if main needs to be freed
+    printCount();
+    if (returnCount() == 1) {
+        free(mainTCB->stack);
+        free(mainTCB);
+        printf("    FREED MAIN CONTEXT AND STACK\n");
+    }
 
     return 0;
 };

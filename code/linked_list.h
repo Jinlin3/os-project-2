@@ -18,6 +18,9 @@ struct LinkedList {
 // prints out the number of items in the queue
 void printCount();
 
+// returns the count of the list
+int returnCount();
+
 // initializes linked list object
 void createList();
 
@@ -36,14 +39,16 @@ int popAndPlop();
 // returns the value of a new thread id
 int newThreadId();
 
-// returns the head of the queue
+// returns the head of the queue (TCB*)
 struct TCB* returnHeadTCB();
 
+// returns the head of the queue (Node*)
 struct Node* returnHeadNode();
 
 // returns the last node of the queue
 struct Node* returnLast();
 
+// search list for TCB (given thread)
 struct TCB* searchTCB(worker_t thread);
 
 #endif

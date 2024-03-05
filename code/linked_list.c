@@ -16,7 +16,11 @@ void createList() {
 
 // prints out the number of items in the queue
 void printCount() {
-    printf("Number of threads in the queue: %d\n", list->count);
+    printf("    NUMBER OF THREADS LEFT: %d\n", list->count);
+}
+
+int returnCount() {
+    return list->count;
 }
 
 // prints out queue
@@ -62,7 +66,7 @@ void addToQueue(struct TCB* tcb) {
 // pops a node from the list
 int pop(struct TCB* tcb) {
     if (list->count < 2) {
-        printf("Too little items!\n");
+        printf("    Too little items!\n");
         return 1;
     }
     if (list->head->data->id == tcb->id) { // if list head is the one that needs to be popped
@@ -81,8 +85,9 @@ int pop(struct TCB* tcb) {
             after = before->next->next;
             before->next = after;
         }
-        return 0;
     }
+    list->count--;
+    return 0;
 }
 
 // moves first node to the end
