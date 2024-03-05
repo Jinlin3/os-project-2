@@ -35,6 +35,8 @@ struct TCB* mainTCB;
 struct TCB* currentTCB;
 // timer
 struct itimerval timer;
+// RUN QUEUE
+struct LinkedList* runQueue;
 
 /* creates scheduler TCB */
 int initialize_scheduler() {
@@ -70,7 +72,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     // initializes queue, main thread, scheduler thread, and timer
     if (init_scheduler_done == 0) {
     // initializes queue
-        createList();
+        runQueue = createList();
     // initializes main thread
         printf("    creating main context\n");
         mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
@@ -87,7 +89,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
         mainTCB->context = mainContext;
         currentTCB = mainTCB;
 
-        addToQueue(mainTCB);
+        addToQueue(runQueue, mainTCB);
     }
 
     // 1 - Create Thread Control Block (TCB)
@@ -113,7 +115,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     workerTCB->context = workerContext;
 
     printf("    creating worker %d!\n", workerTCB->id);
-    addToQueue(workerTCB);
+    addToQueue(runQueue, workerTCB);
     getcontext(mainTCB->context);
 
     // initializes queue, main thread, scheduler thread, and timer
@@ -164,7 +166,7 @@ int worker_join(worker_t thread, void **value_ptr)
     // - wait for a specific thread to terminate
     // - if value_ptr is provided, retrieve return value from joining thread
     // - de-allocate any dynamic memory created by the joining thread
-    struct TCB* targetTCB = searchTCB(thread);
+    struct TCB* targetTCB = searchTCB(runQueue, thread);
     while (targetTCB->status != EXIT) {
         worker_yield();
     }
@@ -176,12 +178,12 @@ int worker_join(worker_t thread, void **value_ptr)
 
     free(targetTCB->stack);
     free(targetTCB->context);
-    pop(targetTCB); // removes it from queue
+    pop(runQueue, targetTCB); // removes it from queue
     free(targetTCB);
 
     // print number of threads left to see if main needs to be freed
-    printCount();
-    if (returnCount() == 1) {
+    printCount(runQueue);
+    if (returnCount(runQueue) == 1) {
         free(mainTCB->stack);
         free(mainTCB);
         printf("    FREED MAIN CONTEXT AND STACK\n");
@@ -283,12 +285,12 @@ static void sched_rr()
         currentTCB->status = READY;
     }
     do {
-        popAndPlop();
-        currentTCB = returnHeadTCB();
+        popAndPlop(runQueue);
+        currentTCB = returnHeadTCB(runQueue);
     } while (currentTCB->status != READY);
     currentTCB->status = RUNNING;
     printf("    SWITCH TO: THREAD %d\n", currentTCB->id);
-    printList();
+    printList(runQueue);
     setcontext(currentTCB->context);
 }
 

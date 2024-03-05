@@ -2,35 +2,33 @@
 #include "thread-worker.h"
 #include "linked_list.h"
 
-struct LinkedList* list;
-
 // initializes linked list object
-void createList() {
+struct LinkedList* createList() {
     struct LinkedList* newList = (struct LinkedList*)malloc(sizeof(struct LinkedList));
     if (newList != NULL) {
         newList->head = NULL;
         newList->count = 0;
     }
-    list = newList;
+    return newList;
 }
 
 // prints out the number of items in the queue
-void printCount() {
+void printCount(struct LinkedList* list) {
     printf("    NUMBER OF THREADS LEFT: %d\n", list->count);
 }
 
-int returnCount() {
+int returnCount(struct LinkedList* list) {
     return list->count;
 }
 
 // prints out queue
-void printList() {
+void printList(struct LinkedList* list) {
     if (list->count == 0) {
         printf("The queue is empty.\n");
     } else {
         struct Node* ptr = list->head;
         while (ptr != NULL) {
-            if (ptr->data->id == 100) {
+            if (ptr->data->id == 1000) {
                 printf("MAIN(%d) -> ", ptr->data->status);
             } else {
                 printf("%d(%d) -> ", ptr->data->id, ptr->data->status);
@@ -42,7 +40,7 @@ void printList() {
 }
 
 // creates a new node and returns it; parameter is a TCB struct
-void addToQueue(struct TCB* tcb) {
+void addToQueue(struct LinkedList* list, struct TCB* tcb) {
     struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
     if (newNode == NULL) {
         printf("Memory allocation failed.\n");
@@ -64,7 +62,7 @@ void addToQueue(struct TCB* tcb) {
 }
 
 // pops a node from the list
-int pop(struct TCB* tcb) {
+int pop(struct LinkedList* list, struct TCB* tcb) {
     if (list->count < 2) {
         printf("    Too little items!\n");
         return 1;
@@ -91,7 +89,7 @@ int pop(struct TCB* tcb) {
 }
 
 // moves first node to the end
-int popAndPlop() {
+int popAndPlop(struct LinkedList* list) {
     if (list->head == NULL || list->head->next == NULL) {
         return 1;
     }
@@ -107,22 +105,22 @@ int popAndPlop() {
 }
 
 // returns the value of a new thread id
-int newThreadId() {
+int newThreadId(struct LinkedList* list) {
     return list->count + 1;
 }
 
 // returns the head of the queue
-struct TCB* returnHeadTCB() {
+struct TCB* returnHeadTCB(struct LinkedList* list) {
     return list->head->data;
 }
 
 // returns the head of the queue
-struct Node* returnHeadNode() {
+struct Node* returnHeadNode(struct LinkedList* list) {
     return list->head;
 }
 
 // returns the last node of the queue
-struct Node* returnLast() {
+struct Node* returnLast(struct LinkedList* list) {
     struct Node* ptr = list->head;
     while (ptr->next != NULL) {
         ptr = ptr->next;
@@ -130,7 +128,7 @@ struct Node* returnLast() {
     return ptr;
 }
 
-struct TCB* searchTCB(worker_t thread) {
+struct TCB* searchTCB(struct LinkedList* list, worker_t thread) {
     struct Node* ptr = list->head;
     while (ptr->data->id != thread) {
         ptr = ptr->next;
