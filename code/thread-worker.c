@@ -11,6 +11,7 @@
 #include "thread-worker.h"
 #include "thread_worker_types.h"
 #include "linked_list.h"
+#include "mutex_types.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,8 +21,7 @@
 #include <ucontext.h>
 
 #define STACK_SIZE 16 * 1024
-#define QUANTUM 2 * 100000 // 0.5s
-// #define QUANTUM 10 * 1000
+#define QUANTUM 5 * 10000
 
 // INITIALIZE ALL YOUR OTHER VARIABLES HERE
 int init_scheduler_done = 0;
@@ -196,24 +196,36 @@ int worker_join(worker_t thread, void **value_ptr)
 int worker_mutex_init(worker_mutex_t *mutex,
                       const pthread_mutexattr_t *mutexattr)
 {
-    //- initialize data structures for this mutex
+    // initializing mutex structure at address
+    struct LinkedList* mutexQueue = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+    mutex->lock = 0;
+    mutex->queue = mutexQueue;
+    
+    printf("    INITIALIZED MUTEX\n");
+
     return 0;
 };
 
 /* acquire the mutex lock */
 int worker_mutex_lock(worker_mutex_t *mutex)
 {
-
     // - use the built-in test-and-set atomic function to test the mutex
     // - if the mutex is acquired successfully, enter the critical section
     // - if acquiring mutex fails, push current thread into block list and
     // context switch to the scheduler thread
+    printf("    PROCESS ID: %d, LOCK VALUE: %d\n", currentTCB->id, mutex->lock);
+    while (__sync_lock_test_and_set(&(mutex->lock), 1)) {
+        printf("    MUTEX LOCKED, SWAPPING THREADS FROM THREAD %d\n", currentTCB->id);
+        worker_yield();
+    }
     return 0;
 };
 
 /* release the mutex lock */
 int worker_mutex_unlock(worker_mutex_t *mutex)
 {
+    printf("    MUTEX UNLOCKED\n");
+    __sync_lock_release(&(mutex->lock));
     // - release mutex and make it available again.
     // - put one or more threads in block list to run queue
     // so that they could compete for mutex later.
