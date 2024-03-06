@@ -268,7 +268,7 @@ int worker_mutex_destroy(worker_mutex_t *mutex)
 {
     // - make sure mutex is not being used
     // - de-allocate dynamic memory created in worker_mutex_init
-    if (mutex->queue->count != 0) {
+    if (mutex->queue->count != 0 || mutex->lock == 1) {
         return 0;
     }
     mutex->lock = 0;
