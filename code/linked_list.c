@@ -43,7 +43,7 @@ void printList(struct LinkedList* list) {
 void addToQueue(struct LinkedList* list, struct TCB* tcb) {
     struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
     if (newNode == NULL) {
-        printf("Memory allocation failed.\n");
+        perror("Memory allocation failed.\n");
         exit(1);
     }
     newNode->data = tcb;
@@ -63,25 +63,25 @@ void addToQueue(struct LinkedList* list, struct TCB* tcb) {
 
 // pops a node from the list
 int pop(struct LinkedList* list, struct TCB* tcb) {
-    if (list->count < 2) {
-        printf("    Too little items!\n");
-        return 1;
-    }
-    if (list->head->data->id == tcb->id) { // if list head is the one that needs to be popped
-        struct Node* newHead = list->head->next;
-        list->head->next = NULL;
-        list->head = newHead;
-    } else { // if list head does not need to be popped
-        struct Node* before = list->head;
-        struct Node* after;
-        while (before->next->data->id != tcb->id) {
-            before = before->next;
-        }
-        if (before->next->next == NULL) {
-            before->next = NULL;
-        } else {
-            after = before->next->next;
-            before->next = after;
+    if (list->count == 1) {
+        list->head = NULL;
+    } else {
+        if (list->head->data->id == tcb->id) { // if list head is the one that needs to be popped
+            struct Node* newHead = list->head->next;
+            list->head->next = NULL;
+            list->head = newHead;
+        } else { // if list head does not need to be popped
+            struct Node* before = list->head;
+            struct Node* after;
+            while (before->next->data->id != tcb->id) {
+                before = before->next;
+            }
+            if (before->next->next == NULL) {
+                before->next = NULL;
+            } else {
+                after = before->next->next;
+                before->next = after;
+            }
         }
     }
     list->count--;

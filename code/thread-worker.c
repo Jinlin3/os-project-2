@@ -40,7 +40,7 @@ struct LinkedList* runQueue;
 
 /* creates scheduler TCB */
 int initialize_scheduler() {
-    printf("    creating scheduler context\n");
+    // printf("    creating scheduler context\n");
     schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
     ucontext_t* schedulerContext = malloc(sizeof(ucontext_t));
@@ -74,7 +74,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     // initializes queue
         runQueue = createList();
     // initializes main thread
-        printf("    creating main context\n");
+        // printf("    creating main context\n");
         mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
         ucontext_t* mainContext = malloc(sizeof(ucontext_t));
@@ -114,7 +114,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     workerTCB->stack = workerStack;
     workerTCB->context = workerContext;
 
-    printf("    creating worker %d!\n", workerTCB->id);
+    // printf("    creating worker %d!\n", workerTCB->id);
     addToQueue(runQueue, workerTCB);
     getcontext(mainTCB->context);
 
@@ -135,8 +135,7 @@ int worker_yield()
     // - change worker thread's state from Running to Ready
     // - save context of this thread to its thread control block
     // - switch from thread context to scheduler context
-    printf("    YIELD FROM: %d\n", currentTCB->id);
-    currentTCB->status = READY;
+    // printf("    YIELD FROM: %d\n", currentTCB->id);
     swapcontext(currentTCB->context, schedulerTCB->context);
     return 0;
 };
@@ -144,15 +143,15 @@ int worker_yield()
 /* terminate a thread */
 void worker_exit(void *value_ptr)
 {
-    printf("    EXITING WORKER: %d\n", currentTCB->id);
+    // printf("    EXITING WORKER: %d\n", currentTCB->id);
     // - if value_ptr is provided, save return value
     // - de-allocate any dynamic memory created when starting this thread (could be done here or elsewhere)
     currentTCB->status = EXIT;
     if (value_ptr != NULL) {
         currentTCB->exitValuePtr = value_ptr;
-        printf("    EXIT VALUE: %d\n", *(int*)currentTCB->exitValuePtr);
+        // printf("    EXIT VALUE: %d\n", *(int*)currentTCB->exitValuePtr);
     } else {
-        printf("    EXIT STATUS: No value provided\n");
+        // printf("    EXIT STATUS: No value provided\n");
     }
     
     setcontext(schedulerTCB->context);
@@ -161,7 +160,7 @@ void worker_exit(void *value_ptr)
 /* Wait for thread termination */
 int worker_join(worker_t thread, void **value_ptr)
 {
-    printf("    WORKER JOIN\n");
+    // printf("    WORKER JOIN\n");
     getcontext(mainTCB);
     // - wait for a specific thread to terminate
     // - if value_ptr is provided, retrieve return value from joining thread
@@ -170,7 +169,7 @@ int worker_join(worker_t thread, void **value_ptr)
     while (targetTCB->status != EXIT) {
         worker_yield();
     }
-    printf("    FREEING WORKER %d\n", thread);
+    // printf("    FREEING WORKER %d\n", thread);
 
     if (targetTCB->exitValuePtr != NULL) {
         *value_ptr = targetTCB->exitValuePtr;
@@ -182,12 +181,15 @@ int worker_join(worker_t thread, void **value_ptr)
     free(targetTCB);
 
     // print number of threads left to see if main needs to be freed
-    printCount(runQueue);
+    // printCount(runQueue);
     if (returnCount(runQueue) == 1) {
         free(mainTCB->stack);
         free(mainTCB);
-        printf("    FREED MAIN CONTEXT AND STACK\n");
+        // printf("    FREED MAIN CONTEXT AND STACK\n");
     }
+
+    // printf("    RUN QUEUE AFTER JOINING: ");
+    // printList(runQueue);
 
     return 0;
 };
@@ -200,8 +202,9 @@ int worker_mutex_init(worker_mutex_t *mutex,
     struct LinkedList* mutexQueue = (struct LinkedList*)malloc(sizeof(struct LinkedList));
     mutex->lock = 0;
     mutex->queue = mutexQueue;
+    mutex->destroyed = INUSE;
     
-    printf("    INITIALIZED MUTEX\n");
+    // printf("    INITIALIZED MUTEX\n");
 
     return 0;
 };
@@ -213,9 +216,19 @@ int worker_mutex_lock(worker_mutex_t *mutex)
     // - if the mutex is acquired successfully, enter the critical section
     // - if acquiring mutex fails, push current thread into block list and
     // context switch to the scheduler thread
-    printf("    PROCESS ID: %d, LOCK VALUE: %d\n", currentTCB->id, mutex->lock);
+
+    // printf("    PROCESS ID: %d, LOCK VALUE: %d\n", currentTCB->id, mutex->lock);
+
     while (__sync_lock_test_and_set(&(mutex->lock), 1)) {
-        printf("    MUTEX LOCKED, SWAPPING THREADS FROM THREAD %d\n", currentTCB->id);
+        // pop from run queue and push to blocked queue
+        currentTCB->status = BLOCKED;
+        addToQueue(mutex->queue, currentTCB);
+        pop(runQueue, currentTCB);
+
+        // printf("    MUTEX QUEUE: ");
+        // printList(mutex->queue);
+        // printf("    MUTEX LOCKED, SWAPPING THREADS FROM THREAD %d\n", currentTCB->id);
+
         worker_yield();
     }
     return 0;
@@ -224,8 +237,25 @@ int worker_mutex_lock(worker_mutex_t *mutex)
 /* release the mutex lock */
 int worker_mutex_unlock(worker_mutex_t *mutex)
 {
-    printf("    MUTEX UNLOCKED\n");
+    // printf("    MUTEX UNLOCKED\n");
+
+    // release lock
     __sync_lock_release(&(mutex->lock));
+
+    // if current thread was previously blocked
+    if (currentTCB->status == BLOCKED) {
+        currentTCB->status = RUNNING;
+        pop(mutex->queue, currentTCB);
+        addToQueue(runQueue, currentTCB);
+    }
+
+    // if there are threads in the queue, put one back into the run queue
+    if (returnCount(mutex->queue) > 0) {
+        returnHeadTCB(mutex->queue)->status = READY;
+        addToQueue(runQueue, returnHeadTCB(mutex->queue));
+        pop(mutex->queue, returnHeadTCB(mutex->queue));
+    }
+    
     // - release mutex and make it available again.
     // - put one or more threads in block list to run queue
     // so that they could compete for mutex later.
@@ -238,8 +268,12 @@ int worker_mutex_destroy(worker_mutex_t *mutex)
 {
     // - make sure mutex is not being used
     // - de-allocate dynamic memory created in worker_mutex_init
-
-    return 0;
+    if (mutex->queue->count != 0) {
+        return 0;
+    }
+    mutex->lock = 0;
+    mutex->destroyed = DESTROYED;
+    free(mutex->queue);
 };
 
 /* scheduler */
@@ -264,7 +298,7 @@ static void schedule()
 
 /* starts the timer */
 static void timer_init() {
-    printf("    starting the timer\n");
+    // printf("    starting the timer\n");
     struct sigaction sa;
 	memset (&sa, 0, sizeof(sa));
 	sa.sa_handler = &timer_handler;
@@ -284,7 +318,7 @@ static void timer_init() {
 }
 
 void timer_handler() {
-    printf("    TIMER UP!\n");
+    //printf("    TIMER UP!\n");
     swapcontext(currentTCB->context, schedulerTCB->context);
 }
 
@@ -293,16 +327,19 @@ static void sched_rr()
     // - your own implementation of RR
     // (feel free to modify arguments and return types)
 
-    if (currentTCB->status != EXIT) {
+    // printf("    CURRENT TCB STATUS: %d\n", currentTCB->status);
+    if (currentTCB->status != EXIT && currentTCB->status != BLOCKED) {
         currentTCB->status = READY;
+        // printf("    SETTING STATUS TO READY\n");
     }
     do {
         popAndPlop(runQueue);
         currentTCB = returnHeadTCB(runQueue);
     } while (currentTCB->status != READY);
     currentTCB->status = RUNNING;
-    printf("    SWITCH TO: THREAD %d\n", currentTCB->id);
-    printList(runQueue);
+    // printf("    SWITCH TO: THREAD %d\n", currentTCB->id);
+    // printf("    Run Queue: ");
+    // printList(runQueue);
     setcontext(currentTCB->context);
 }
 

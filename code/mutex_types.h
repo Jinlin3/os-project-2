@@ -6,6 +6,9 @@
 #include "thread_worker_types.h"
 #include "linked_list.h"
 
+#define INUSE 0
+#define DESTROYED 1
+
 /* mutex struct definition */
 typedef struct worker_mutex_t
 {
@@ -13,6 +16,7 @@ typedef struct worker_mutex_t
     // YOUR CODE HERE
     volatile int lock; // 0 = unlocked, 1 = locked
     struct LinkedList* queue; // blocked queue for all blocked threads waiting to enter the critical section
+    int destroyed;
 } worker_mutex_t;
 
 #endif
