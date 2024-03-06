@@ -203,6 +203,7 @@ int worker_mutex_lock(worker_mutex_t *mutex)
     // - if the mutex is acquired successfully, enter the critical section
     // - if acquiring mutex fails, push current thread into block list and
     // context switch to the scheduler thread
+<<<<<<< HEAD
     printf("    PROCESS ID: %d, LOCK VALUE: %d\n", currentTCB->id, mutex->lock);
     while (__sync_lock_test_and_set(&(mutex->lock), 1)) {
         currentTCB->status = BLOCKED;
@@ -212,6 +213,8 @@ int worker_mutex_lock(worker_mutex_t *mutex)
 
         worker_yield();
     }
+=======
+>>>>>>> parent of 7671e82 (about to delete print statements and work on mutex)
     return 0;
 };
 
