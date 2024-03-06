@@ -11,6 +11,7 @@
 #include "thread-worker.h"
 #include "thread_worker_types.h"
 #include "linked_list.h"
+#include "mutex_types.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,8 +21,7 @@
 #include <ucontext.h>
 
 #define STACK_SIZE 16 * 1024
-#define QUANTUM 2 * 100000 // 0.5s
-// #define QUANTUM 10 * 1000
+#define QUANTUM 5 * 10000
 
 // INITIALIZE ALL YOUR OTHER VARIABLES HERE
 int init_scheduler_done = 0;
@@ -40,6 +40,7 @@ struct LinkedList* runQueue;
 
 /* creates scheduler TCB */
 int initialize_scheduler() {
+    printf("    creating scheduler context\n");
     schedulerTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
     ucontext_t* schedulerContext = malloc(sizeof(ucontext_t));
@@ -73,6 +74,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     // initializes queue
         runQueue = createList();
     // initializes main thread
+        printf("    creating main context\n");
         mainTCB = (struct TCB*)malloc(sizeof(struct TCB));
 
         ucontext_t* mainContext = malloc(sizeof(ucontext_t));
@@ -112,6 +114,7 @@ int worker_create(worker_t *thread, pthread_attr_t *attr, void *(*function)(void
     workerTCB->stack = workerStack;
     workerTCB->context = workerContext;
 
+    printf("    creating worker %d!\n", workerTCB->id);
     addToQueue(runQueue, workerTCB);
     getcontext(mainTCB->context);
 
@@ -132,6 +135,7 @@ int worker_yield()
     // - change worker thread's state from Running to Ready
     // - save context of this thread to its thread control block
     // - switch from thread context to scheduler context
+    printf("    YIELD FROM: %d\n", currentTCB->id);
     currentTCB->status = READY;
     swapcontext(currentTCB->context, schedulerTCB->context);
     return 0;
@@ -157,6 +161,7 @@ void worker_exit(void *value_ptr)
 /* Wait for thread termination */
 int worker_join(worker_t thread, void **value_ptr)
 {
+    printf("    WORKER JOIN\n");
     getcontext(mainTCB);
     // - wait for a specific thread to terminate
     // - if value_ptr is provided, retrieve return value from joining thread
@@ -191,36 +196,36 @@ int worker_join(worker_t thread, void **value_ptr)
 int worker_mutex_init(worker_mutex_t *mutex,
                       const pthread_mutexattr_t *mutexattr)
 {
-    //- initialize data structures for this mutex
+    // initializing mutex structure at address
+    struct LinkedList* mutexQueue = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+    mutex->lock = 0;
+    mutex->queue = mutexQueue;
+    
+    printf("    INITIALIZED MUTEX\n");
+
     return 0;
 };
 
 /* acquire the mutex lock */
 int worker_mutex_lock(worker_mutex_t *mutex)
 {
-
     // - use the built-in test-and-set atomic function to test the mutex
     // - if the mutex is acquired successfully, enter the critical section
     // - if acquiring mutex fails, push current thread into block list and
     // context switch to the scheduler thread
-<<<<<<< HEAD
     printf("    PROCESS ID: %d, LOCK VALUE: %d\n", currentTCB->id, mutex->lock);
     while (__sync_lock_test_and_set(&(mutex->lock), 1)) {
-        currentTCB->status = BLOCKED;
-
-        printf("RQ IN MUTEX: ");
-        printList(runQueue);
-
+        printf("    MUTEX LOCKED, SWAPPING THREADS FROM THREAD %d\n", currentTCB->id);
         worker_yield();
     }
-=======
->>>>>>> parent of 7671e82 (about to delete print statements and work on mutex)
     return 0;
 };
 
 /* release the mutex lock */
 int worker_mutex_unlock(worker_mutex_t *mutex)
 {
+    printf("    MUTEX UNLOCKED\n");
+    __sync_lock_release(&(mutex->lock));
     // - release mutex and make it available again.
     // - put one or more threads in block list to run queue
     // so that they could compete for mutex later.
@@ -259,6 +264,7 @@ static void schedule()
 
 /* starts the timer */
 static void timer_init() {
+    printf("    starting the timer\n");
     struct sigaction sa;
 	memset (&sa, 0, sizeof(sa));
 	sa.sa_handler = &timer_handler;
@@ -278,7 +284,7 @@ static void timer_init() {
 }
 
 void timer_handler() {
-    printf("    ring!\n");
+    printf("    TIMER UP!\n");
     swapcontext(currentTCB->context, schedulerTCB->context);
 }
 
@@ -287,7 +293,7 @@ static void sched_rr()
     // - your own implementation of RR
     // (feel free to modify arguments and return types)
 
-    if (currentTCB->status != EXIT || currentTCB->status != BLOCKED) {
+    if (currentTCB->status != EXIT) {
         currentTCB->status = READY;
     }
     do {
@@ -295,7 +301,7 @@ static void sched_rr()
         currentTCB = returnHeadTCB(runQueue);
     } while (currentTCB->status != READY);
     currentTCB->status = RUNNING;
-    printf("Run Queue: ");
+    printf("    SWITCH TO: THREAD %d\n", currentTCB->id);
     printList(runQueue);
     setcontext(currentTCB->context);
 }
